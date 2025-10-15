@@ -34,14 +34,20 @@ contract Evidence {
     //////////////
     // Events  ///
     //////////////
-    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+    event OwnershipTransferred(
+        address indexed previousOwner,
+        address indexed newOwner
+    );
     event EvindenceDiscontinued(bytes32 indexed evidenceId);
 
     //////////////////
     // Modifiers   ///
     //////////////////
     modifier onlyCreator() {
-        require(msg.sender == chainOfCustody[0], "Only Creator can call this function");
+        require(
+            msg.sender == chainOfCustody[0],
+            "Only Creator can call this function"
+        );
         _;
     }
 
@@ -68,11 +74,16 @@ contract Evidence {
         address _initialOwner,
         string memory _description
     ) {
-        if (msg.sender != _evidenceLedgerAddress) revert UnauthorizedDeployment(msg.sender);
-        if (_initialOwner != _creator) revert CreatorIsNotInitialOwner(_creator, msg.sender);
-        if (_creator == address(0)) revert("Invalid Creator: cannot be zero address");
-        if (_evidenceId == 0x0) revert("Invalid evidence ID: ID cannot be empty");
-        if (bytes(_description).length == 0) revert("Invalid description: description cannot be empty");
+        if (msg.sender != _evidenceLedgerAddress)
+            revert UnauthorizedDeployment(msg.sender);
+        if (_initialOwner != _creator)
+            revert CreatorIsNotInitialOwner(_creator, msg.sender);
+        if (_creator == address(0))
+            revert("Invalid Creator: cannot be zero address");
+        if (_evidenceId == 0x0)
+            revert("Invalid evidence ID: ID cannot be empty");
+        if (bytes(_description).length == 0)
+            revert("Invalid description: description cannot be empty");
 
         ORIGINAL_EVIDENCE_LEDGER_ADDRESS = _evidenceLedgerAddress;
         CREATOR = _creator;
@@ -95,7 +106,10 @@ contract Evidence {
     }
 
     // Private & Internal Functions View function
-    function _transferOwnership(address _from, address _to) private onlyCurrentOwner(_from) {
+    function _transferOwnership(
+        address _from,
+        address _to
+    ) private onlyCurrentOwner(_from) {
         owner = _to;
         chainOfCustody.push(_to);
     }
@@ -105,7 +119,7 @@ contract Evidence {
     }
 
     // Public & External Functions View Functions
-    function getevidenceId() external view returns (bytes32) {
+    function getEvidenceId() external view returns (bytes32) {
         return EVIDENCE_ID;
     }
 
