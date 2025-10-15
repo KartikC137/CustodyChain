@@ -1,0 +1,5 @@
+# env files
+.env*
+
+# Dev files
+DevFiles/
