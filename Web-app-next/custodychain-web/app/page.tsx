@@ -1,4 +1,6 @@
 import ConnectWalletButton from "../components/web3/ConnectWalletButton";
+import CreateEvidenceForm from "@/components/web3/CreateEvidence";
+import GetEvidenceInfo from "@/components/web3/GetEvidenceInfo";
 
 export default function Home() {
   return (
@@ -13,6 +15,12 @@ export default function Home() {
       </div>
       <div className="font-sans w-100px h-100px">
         <ConnectWalletButton />
+      </div>
+      <div className="font-sans">
+        <CreateEvidenceForm />
+      </div>
+      <div className="font-sans">
+        <GetEvidenceInfo />
       </div>
     </>
   );

@@ -1,10 +1,17 @@
 "use client";
 
 import { createContext, useContext } from "react";
-import { type Address, type PublicClient, type WalletClient } from "viem";
+import {
+  type Address,
+  type PublicClient,
+  type WalletClient,
+  type Chain,
+} from "viem";
 
 export interface Web3ContextType {
+  isLoading: boolean;
   account: Address | null;
+  chain: Chain | undefined;
   walletClient: WalletClient | null;
   publicClient: PublicClient | null;
   connectWallet: () => Promise<void>;
