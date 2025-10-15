@@ -85,7 +85,7 @@ contract Evidence {
     // External Functions
     function transferOwnership(address newOwner) external onlyIfActive {
         address previousOwner = owner;
-        _transferOwnership(previousOwner, newOwner);
+        _transferOwnership(msg.sender, newOwner);
         emit OwnershipTransferred(previousOwner, newOwner);
     }
 

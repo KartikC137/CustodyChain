@@ -1,0 +1,150 @@
+{
+	"compiler": {
+		"version": "0.8.30+commit.73712a01"
+	},
+	"language": "Solidity",
+	"output": {
+		"abi": [
+			{
+				"anonymous": false,
+				"inputs": [
+					{
+						"indexed": true,
+						"internalType": "address",
+						"name": "creator",
+						"type": "address"
+					},
+					{
+						"indexed": true,
+						"internalType": "bytes32",
+						"name": "evidenceId",
+						"type": "bytes32"
+					},
+					{
+						"indexed": false,
+						"internalType": "string",
+						"name": "description",
+						"type": "string"
+					}
+				],
+				"name": "EvidenceCreated",
+				"type": "event"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "bytes32",
+						"name": "evidenceId",
+						"type": "bytes32"
+					},
+					{
+						"internalType": "string",
+						"name": "description",
+						"type": "string"
+					}
+				],
+				"name": "createEvidence",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "bytes32",
+						"name": "evidenceId",
+						"type": "bytes32"
+					}
+				],
+				"name": "getEvidenceContractAddress",
+				"outputs": [
+					{
+						"internalType": "address",
+						"name": "evidenceContractAddress",
+						"type": "address"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "getEvidenceLedgerStatus",
+				"outputs": [
+					{
+						"internalType": "bool",
+						"name": "evidenceLedgerCreated",
+						"type": "bool"
+					}
+				],
+				"stateMutability": "pure",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "address",
+						"name": "creator",
+						"type": "address"
+					}
+				],
+				"name": "getEvidencesCreatedByCreator",
+				"outputs": [
+					{
+						"internalType": "bytes32[]",
+						"name": "evidenceIds",
+						"type": "bytes32[]"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			}
+		],
+		"devdoc": {
+			"kind": "dev",
+			"methods": {},
+			"version": 1
+		},
+		"userdoc": {
+			"kind": "user",
+			"methods": {},
+			"version": 1
+		}
+	},
+	"settings": {
+		"compilationTarget": {
+			"src/EvidenceLedger.sol": "EvidenceLedger"
+		},
+		"evmVersion": "prague",
+		"libraries": {},
+		"metadata": {
+			"bytecodeHash": "ipfs"
+		},
+		"optimizer": {
+			"enabled": false,
+			"runs": 200
+		},
+		"remappings": [
+			":forge-std/=lib/forge-std/src/"
+		]
+	},
+	"sources": {
+		"src/ChainOfCustody.sol": {
+			"keccak256": "0xdb9fedcd7b8c9a6d45eaa5d8eab32b3d6858f54c10dea2e5d9ac82928d0c58b7",
+			"license": "MIT",
+			"urls": [
+				"bzz-raw://2181df8f49590ce587b7c8f57bed7fbce8a152f77f5962fc9ea5f48bc6997952",
+				"dweb:/ipfs/Qmbw5LXmHCoEaAwGUhMMiBrXizcfzrNhZGujQD727mC5Sj"
+			]
+		},
+		"src/EvidenceLedger.sol": {
+			"keccak256": "0x9be1c37df1e5742e87d9d5eaf43df59bdc7ea63cc9bb4c841ef9d99dd1c1112a",
+			"license": "MIT",
+			"urls": [
+				"bzz-raw://9d2ed0619721e43992aa31142207216d4eeb8432387938a350a4d2afca8dfcd9",
+				"dweb:/ipfs/QmduM5zyGJaAPDQpqXHuvZqnkXHsb3KN17X2PawmmN6D67"
+			]
+		}
+	},
+	"version": 1
+}
