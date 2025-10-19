@@ -179,7 +179,7 @@ export const evidenceAbi = [
   },
   {
     inputs: [],
-    name: "getevidenceId",
+    name: "getEvidenceId",
     outputs: [
       {
         internalType: "bytes32",

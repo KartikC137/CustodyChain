@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
+    "deploy": "../../DevFiles/DeployEmptyEvidenceLedger.sh && next dev --turbopack",
     "build": "next build --turbopack",
     "start": "next start",
     "lint": "biome check",

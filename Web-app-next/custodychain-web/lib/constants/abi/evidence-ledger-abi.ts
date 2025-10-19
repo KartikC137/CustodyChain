@@ -1,20 +1,10 @@
-export const evidenceLedgerAddress =
-  "0x8464135c8F25Da09e49BC8782676a84730C318bC";
 export const evidenceLedgerAbi = [
   {
     type: "function",
     name: "createEvidence",
     inputs: [
-      {
-        name: "evidenceId",
-        type: "bytes32",
-        internalType: "bytes32",
-      },
-      {
-        name: "description",
-        type: "string",
-        internalType: "string",
-      },
+      { name: "evidenceId", type: "bytes32", internalType: "bytes32" },
+      { name: "description", type: "string", internalType: "string" },
     ],
     outputs: [],
     stateMutability: "nonpayable",
@@ -22,13 +12,7 @@ export const evidenceLedgerAbi = [
   {
     type: "function",
     name: "getEvidenceContractAddress",
-    inputs: [
-      {
-        name: "evidenceId",
-        type: "bytes32",
-        internalType: "bytes32",
-      },
-    ],
+    inputs: [{ name: "evidenceId", type: "bytes32", internalType: "bytes32" }],
     outputs: [
       {
         name: "evidenceContractAddress",
@@ -52,25 +36,6 @@ export const evidenceLedgerAbi = [
     stateMutability: "pure",
   },
   {
-    type: "function",
-    name: "getEvidencesCreatedByCreator",
-    inputs: [
-      {
-        name: "creator",
-        type: "address",
-        internalType: "address",
-      },
-    ],
-    outputs: [
-      {
-        name: "evidenceIds",
-        type: "bytes32[]",
-        internalType: "bytes32[]",
-      },
-    ],
-    stateMutability: "view",
-  },
-  {
     type: "event",
     name: "EvidenceCreated",
     inputs: [
@@ -89,7 +54,7 @@ export const evidenceLedgerAbi = [
       {
         name: "description",
         type: "string",
-        indexed: false,
+        indexed: true,
         internalType: "string",
       },
     ],
