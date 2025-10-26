@@ -12,8 +12,6 @@ export default function Home() {
         <p className="font-sans">
           Blockchain Based Evidence Management And Chain Of Custody
         </p>
-      </div>
-      <div className="border-green-500 border-solid border-2 m-1 rounded-md bg-green-200">
         <ConnectWalletButton />
       </div>
       <div className="font-sans m-1 border rounded-lg">

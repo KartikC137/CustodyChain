@@ -16,6 +16,7 @@ import { useState } from "react";
 
 export default function CreateEvidenceForm() {
   const { account, chain, walletClient, publicClient } = useWeb3();
+  const [evidenceId, setEvidenceId] = useState<Address | null>(null);
   const [description, setDescription] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -49,16 +50,6 @@ export default function CreateEvidenceForm() {
         [description, evidenceLedgerAddress]
       );
       const evidenceId: Address = keccak256(encodedData);
-      console.log(
-        "Initiate Evidence Creation\n",
-        "EvidenceLedger Address: ",
-        evidenceLedgerAddress,
-        "\nEvidence ID : ",
-        evidenceId,
-        "\nDescription : ",
-        description
-      );
-
       const hash = await walletClient.writeContract({
         address: evidenceLedgerAddress,
         chain: chain,
@@ -69,10 +60,13 @@ export default function CreateEvidenceForm() {
         gas: 1_200_000n,
       });
 
+      setDescription("");
+      setEvidenceId(evidenceId);
       setTransactionHash(hash);
-      const receipt = await publicClient.waitForTransactionReceipt({ hash });
 
-      // Check if event output matches correct addresses
+      console.log("Evidence Created. Tx Hash: ", hash);
+
+      const receipt = await publicClient.waitForTransactionReceipt({ hash });
       const eventLog = receipt.logs
         .map((log) => {
           try {
@@ -82,6 +76,7 @@ export default function CreateEvidenceForm() {
           }
         })
         .find((log) => log?.eventName === "EvidenceCreated");
+
       if (eventLog) {
         console.log("Event decoded:", eventLog.args);
         const {
@@ -162,7 +157,7 @@ export default function CreateEvidenceForm() {
 
       {transactionHash && (
         <div className="p-2 text-sm text-green-700 bg-green-100 rounded">
-          Success! Transaction Hash: {transactionHash}
+          Success! Evidence ID: {evidenceId}
         </div>
       )}
       {error && (

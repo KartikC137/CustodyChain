@@ -1,206 +1,155 @@
 export const evidenceAbi = [
   {
+    type: "constructor",
     inputs: [
       {
-        internalType: "address",
         name: "_evidenceLedgerAddress",
         type: "address",
-      },
-      {
-        internalType: "bytes32",
-        name: "_evidenceId",
-        type: "bytes32",
-      },
-      {
         internalType: "address",
-        name: "_creator",
-        type: "address",
       },
+      { name: "_evidenceId", type: "bytes32", internalType: "bytes32" },
+      { name: "_creator", type: "address", internalType: "address" },
       {
-        internalType: "address",
         name: "_initialOwner",
         type: "address",
+        internalType: "address",
       },
-      {
-        internalType: "string",
-        name: "_description",
-        type: "string",
-      },
+      { name: "_description", type: "string", internalType: "string" },
     ],
     stateMutability: "nonpayable",
-    type: "constructor",
   },
   {
-    inputs: [
+    type: "function",
+    name: "discontinueEvidence",
+    inputs: [],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "getChainOfCustody",
+    inputs: [],
+    outputs: [
       {
-        internalType: "address",
-        name: "owner",
-        type: "address",
-      },
-      {
-        internalType: "address",
-        name: "caller",
-        type: "address",
+        name: "",
+        type: "tuple[]",
+        internalType: "struct Evidence.CustodyRecord[]",
+        components: [
+          { name: "owner", type: "address", internalType: "address" },
+          {
+            name: "timestamp",
+            type: "uint256",
+            internalType: "uint256",
+          },
+        ],
       },
     ],
-    name: "CallerIsNotCurrentOwner",
-    type: "error",
+    stateMutability: "view",
   },
   {
-    inputs: [
-      {
-        internalType: "address",
-        name: "creator",
-        type: "address",
-      },
-      {
-        internalType: "address",
-        name: "initialOwner",
-        type: "address",
-      },
-    ],
-    name: "CreatorIsNotInitialOwner",
-    type: "error",
+    type: "function",
+    name: "getCurrentOwner",
+    inputs: [],
+    outputs: [{ name: "", type: "address", internalType: "address" }],
+    stateMutability: "view",
   },
   {
-    inputs: [
-      {
-        internalType: "address",
-        name: "caller",
-        type: "address",
-      },
-    ],
-    name: "UnauthorizedDeployment",
-    type: "error",
+    type: "function",
+    name: "getCurrentOwnerTranfserTime",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
+    stateMutability: "view",
   },
   {
-    anonymous: false,
+    type: "function",
+    name: "getEvidenceCreator",
+    inputs: [],
+    outputs: [{ name: "", type: "address", internalType: "address" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "getEvidenceDescription",
+    inputs: [],
+    outputs: [{ name: "", type: "string", internalType: "string" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "getEvidenceId",
+    inputs: [],
+    outputs: [{ name: "", type: "bytes32", internalType: "bytes32" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "getEvidenceState",
+    inputs: [],
+    outputs: [{ name: "", type: "bool", internalType: "bool" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "getTimeOfCreation",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "getTimeOfDiscontinuation",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "transferOwnership",
+    inputs: [{ name: "newOwner", type: "address", internalType: "address" }],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "event",
+    name: "EvindenceDiscontinued",
     inputs: [
       {
-        indexed: true,
-        internalType: "bytes32",
         name: "evidenceId",
         type: "bytes32",
+        indexed: true,
+        internalType: "bytes32",
       },
     ],
-    name: "EvindenceDiscontinued",
-    type: "event",
+    anonymous: false,
   },
   {
-    anonymous: false,
+    type: "event",
+    name: "OwnershipTransferred",
     inputs: [
       {
-        indexed: true,
-        internalType: "address",
         name: "previousOwner",
         type: "address",
-      },
-      {
         indexed: true,
         internalType: "address",
+      },
+      {
         name: "newOwner",
         type: "address",
-      },
-    ],
-    name: "OwnershipTransferred",
-    type: "event",
-  },
-  {
-    inputs: [],
-    name: "discontinueEvidence",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "getChainOfCustody",
-    outputs: [
-      {
-        internalType: "address[]",
-        name: "",
-        type: "address[]",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "getCurrentOwner",
-    outputs: [
-      {
+        indexed: true,
         internalType: "address",
-        name: "",
-        type: "address",
       },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "getEvidenceCreator",
-    outputs: [
       {
-        internalType: "address",
-        name: "",
-        type: "address",
+        name: "TIME_OF_DISCONTINUATION",
+        type: "uint256",
+        indexed: true,
+        internalType: "uint256",
       },
     ],
-    stateMutability: "view",
-    type: "function",
+    anonymous: false,
   },
-  {
-    inputs: [],
-    name: "getEvidenceDescription",
-    outputs: [
-      {
-        internalType: "string",
-        name: "",
-        type: "string",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "getEvidenceState",
-    outputs: [
-      {
-        internalType: "bool",
-        name: "",
-        type: "bool",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "getEvidenceId",
-    outputs: [
-      {
-        internalType: "bytes32",
-        name: "",
-        type: "bytes32",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        internalType: "address",
-        name: "newOwner",
-        type: "address",
-      },
-    ],
-    name: "transferOwnership",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
+  { type: "error", name: "Error_CallerIsNotCreator", inputs: [] },
+  { type: "error", name: "Error_CallerIsNotCurrentOwner", inputs: [] },
+  { type: "error", name: "Error_CreatorIsNotInitialOwner", inputs: [] },
+  { type: "error", name: "Error_EvindenceDiscontinued", inputs: [] },
+  { type: "error", name: "Error_UnauthorizedDeployment", inputs: [] },
 ];

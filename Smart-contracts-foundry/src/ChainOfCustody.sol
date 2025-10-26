@@ -16,18 +16,27 @@ contract Evidence {
     //////////////////
     // Errors      ///
     //////////////////
-    error UnauthorizedDeployment(address caller);
-    error CreatorIsNotInitialOwner(address creator, address initialOwner);
-    error CallerIsNotCurrentOwner(address owner, address caller);
+    error Error_UnauthorizedDeployment();
+    error Error_CreatorIsNotInitialOwner();
+    error Error_CallerIsNotCurrentOwner();
+    error Error_CallerIsNotCreator();
+    error Error_EvindenceDiscontinued();
 
     ////////////////////////
     // State Variables   ///
     ////////////////////////
+    struct CustodyRecord {
+        address owner;
+        uint256 timestamp;
+    }
+
     address private immutable ORIGINAL_EVIDENCE_LEDGER_ADDRESS;
     address private immutable CREATOR;
     bytes32 private immutable EVIDENCE_ID;
+    uint256 private immutable TIME_OF_CREATION;
+    uint256 private TIME_OF_DISCONTINUATION;
     address private owner;
-    address[] private chainOfCustody;
+    CustodyRecord[] private chainOfCustody;
     string private description;
     bool private isActive = true;
 
@@ -36,7 +45,8 @@ contract Evidence {
     //////////////
     event OwnershipTransferred(
         address indexed previousOwner,
-        address indexed newOwner
+        address indexed newOwner,
+        uint256 indexed TIME_OF_DISCONTINUATION
     );
     event EvindenceDiscontinued(bytes32 indexed evidenceId);
 
@@ -44,20 +54,17 @@ contract Evidence {
     // Modifiers   ///
     //////////////////
     modifier onlyCreator() {
-        require(
-            msg.sender == chainOfCustody[0],
-            "Only Creator can call this function"
-        );
+        if (msg.sender != CREATOR) revert Error_CallerIsNotCreator();
         _;
     }
 
     modifier onlyCurrentOwner(address caller) {
-        if (caller != owner) revert CallerIsNotCurrentOwner(owner, caller);
+        if (caller != owner) revert Error_CallerIsNotCurrentOwner();
         _;
     }
 
     modifier onlyIfActive() {
-        require(isActive, "Evidence is no longer accessible");
+        if (!isActive) revert Error_EvindenceDiscontinued();
         _;
     }
 
@@ -75,9 +82,8 @@ contract Evidence {
         string memory _description
     ) {
         if (msg.sender != _evidenceLedgerAddress)
-            revert UnauthorizedDeployment(msg.sender);
-        if (_initialOwner != _creator)
-            revert CreatorIsNotInitialOwner(_creator, msg.sender);
+            revert Error_UnauthorizedDeployment();
+        if (_initialOwner != _creator) revert Error_CreatorIsNotInitialOwner();
         if (_creator == address(0))
             revert("Invalid Creator: cannot be zero address");
         if (_evidenceId == 0x0)
@@ -88,7 +94,10 @@ contract Evidence {
         ORIGINAL_EVIDENCE_LEDGER_ADDRESS = _evidenceLedgerAddress;
         CREATOR = _creator;
         owner = CREATOR;
-        chainOfCustody.push(CREATOR);
+        TIME_OF_CREATION = block.timestamp;
+        chainOfCustody.push(
+            CustodyRecord({owner: _creator, timestamp: TIME_OF_CREATION})
+        );
         EVIDENCE_ID = _evidenceId;
         description = _description;
     }
@@ -97,7 +106,11 @@ contract Evidence {
     function transferOwnership(address newOwner) external onlyIfActive {
         address previousOwner = owner;
         _transferOwnership(msg.sender, newOwner);
-        emit OwnershipTransferred(previousOwner, newOwner);
+        emit OwnershipTransferred(
+            previousOwner,
+            newOwner,
+            TIME_OF_DISCONTINUATION
+        );
     }
 
     function discontinueEvidence() external onlyIfActive {
@@ -111,16 +124,27 @@ contract Evidence {
         address _to
     ) private onlyCurrentOwner(_from) {
         owner = _to;
-        chainOfCustody.push(_to);
+        chainOfCustody.push(
+            CustodyRecord({owner: _to, timestamp: block.timestamp})
+        );
     }
 
     function _discontinueEvidence() private onlyCreator {
+        TIME_OF_DISCONTINUATION = block.timestamp;
         isActive = false;
     }
 
     // Public & External Functions View Functions
     function getEvidenceId() external view returns (bytes32) {
         return EVIDENCE_ID;
+    }
+
+    function getTimeOfCreation() external view returns (uint256) {
+        return TIME_OF_CREATION;
+    }
+
+    function getTimeOfDiscontinuation() external view returns (uint256) {
+        return TIME_OF_DISCONTINUATION;
     }
 
     function getEvidenceCreator() external view returns (address) {
@@ -135,7 +159,11 @@ contract Evidence {
         return owner;
     }
 
-    function getChainOfCustody() external view returns (address[] memory) {
+    function getChainOfCustody()
+        external
+        view
+        returns (CustodyRecord[] memory)
+    {
         return chainOfCustody;
     }
 

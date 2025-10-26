@@ -2,7 +2,7 @@
 import { useWeb3 } from "@/lib/contexts/web3/Web3Context";
 
 export default function ConnectWalletButton() {
-  const { isLoading, account, connectWallet } = useWeb3();
+  const { chain, isLoading, account, connectWallet } = useWeb3();
 
   if (isLoading) {
     return (
@@ -15,13 +15,11 @@ export default function ConnectWalletButton() {
     );
   }
 
-  if (account) {
+  if (account && chain) {
     return (
-      <div className="p-2">
-        <p className="font-mono font-bold text-green-600 text-sm">
-          Connected: {`${account}`}
-        </p>
-      </div>
+      <p className="font-mono font-bold">
+        User: {account} @ {chain?.name}
+      </p>
     );
   }
   return (

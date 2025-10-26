@@ -32,7 +32,6 @@ export default function DiscontinueEvidence({
   onDiscontnueEvidenceComplete,
 }: DiscontinueEvidenceProps) {
   const { account, chain, publicClient, walletClient } = useWeb3();
-  const [evidenceState, setEvidenceState] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   let errorMessage: string;

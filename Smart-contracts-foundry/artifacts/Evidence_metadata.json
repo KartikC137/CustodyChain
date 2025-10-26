@@ -37,46 +37,28 @@
 				"type": "constructor"
 			},
 			{
-				"inputs": [
-					{
-						"internalType": "address",
-						"name": "owner",
-						"type": "address"
-					},
-					{
-						"internalType": "address",
-						"name": "caller",
-						"type": "address"
-					}
-				],
-				"name": "CallerIsNotCurrentOwner",
+				"inputs": [],
+				"name": "Error_CallerIsNotCreator",
 				"type": "error"
 			},
 			{
-				"inputs": [
-					{
-						"internalType": "address",
-						"name": "creator",
-						"type": "address"
-					},
-					{
-						"internalType": "address",
-						"name": "initialOwner",
-						"type": "address"
-					}
-				],
-				"name": "CreatorIsNotInitialOwner",
+				"inputs": [],
+				"name": "Error_CallerIsNotCurrentOwner",
 				"type": "error"
 			},
 			{
-				"inputs": [
-					{
-						"internalType": "address",
-						"name": "caller",
-						"type": "address"
-					}
-				],
-				"name": "UnauthorizedDeployment",
+				"inputs": [],
+				"name": "Error_CreatorIsNotInitialOwner",
+				"type": "error"
+			},
+			{
+				"inputs": [],
+				"name": "Error_EvindenceDiscontinued",
+				"type": "error"
+			},
+			{
+				"inputs": [],
+				"name": "Error_UnauthorizedDeployment",
 				"type": "error"
 			},
 			{
@@ -106,6 +88,12 @@
 						"internalType": "address",
 						"name": "newOwner",
 						"type": "address"
+					},
+					{
+						"indexed": true,
+						"internalType": "uint256",
+						"name": "TIME_OF_DISCONTINUATION",
+						"type": "uint256"
 					}
 				],
 				"name": "OwnershipTransferred",
@@ -123,9 +111,21 @@
 				"name": "getChainOfCustody",
 				"outputs": [
 					{
-						"internalType": "address[]",
+						"components": [
+							{
+								"internalType": "address",
+								"name": "owner",
+								"type": "address"
+							},
+							{
+								"internalType": "uint256",
+								"name": "timestamp",
+								"type": "uint256"
+							}
+						],
+						"internalType": "struct Evidence.CustodyRecord[]",
 						"name": "",
-						"type": "address[]"
+						"type": "tuple[]"
 					}
 				],
 				"stateMutability": "view",
@@ -172,6 +172,19 @@
 			},
 			{
 				"inputs": [],
+				"name": "getEvidenceId",
+				"outputs": [
+					{
+						"internalType": "bytes32",
+						"name": "",
+						"type": "bytes32"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [],
 				"name": "getEvidenceState",
 				"outputs": [
 					{
@@ -185,12 +198,25 @@
 			},
 			{
 				"inputs": [],
-				"name": "getevidenceId",
+				"name": "getTimeOfCreation",
 				"outputs": [
 					{
-						"internalType": "bytes32",
+						"internalType": "uint256",
 						"name": "",
-						"type": "bytes32"
+						"type": "uint256"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "getTimeOfDiscontinuation",
+				"outputs": [
+					{
+						"internalType": "uint256",
+						"name": "",
+						"type": "uint256"
 					}
 				],
 				"stateMutability": "view",
@@ -242,11 +268,11 @@
 	},
 	"sources": {
 		"src/ChainOfCustody.sol": {
-			"keccak256": "0xdb9fedcd7b8c9a6d45eaa5d8eab32b3d6858f54c10dea2e5d9ac82928d0c58b7",
+			"keccak256": "0x9aa990ef5b1da75c9732c725c8c51734b19e71255f68472aa2a4763853a6c09a",
 			"license": "MIT",
 			"urls": [
-				"bzz-raw://2181df8f49590ce587b7c8f57bed7fbce8a152f77f5962fc9ea5f48bc6997952",
-				"dweb:/ipfs/Qmbw5LXmHCoEaAwGUhMMiBrXizcfzrNhZGujQD727mC5Sj"
+				"bzz-raw://76cd03425dbc7801c5613272ef5c7a32879adbd89c90187967400b25ac9086f5",
+				"dweb:/ipfs/QmVoSeLcLjxCFZeygBk7H2tv9rDioyR6oH8rtoW9fcKigh"
 			]
 		}
 	},
