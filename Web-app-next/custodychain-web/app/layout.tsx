@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Montserrat } from "next/font/google";
 import "./globals.css";
 import Web3Provider from "@/components/web3/Web3Provider";
+import Navbar from "@/components/layout/Navbar";
 
 const monsterrat = Montserrat({
   variable: "--font-monsteratt",
@@ -21,11 +22,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-          <body className={`${monsterrat.variable} antialiased`}>
-            <Web3Provider>
-              {children}
-            </Web3Provider>
-          </body>
+      <body className={`${monsterrat.variable} antialiased`}>
+        <Web3Provider>
+          <Navbar />
+          {children}
+        </Web3Provider>
+      </body>
     </html>
   );
 }

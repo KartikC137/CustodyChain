@@ -9,6 +9,10 @@ import {
   ContractFunctionRevertedError,
   decodeEventLog,
 } from "viem";
+import MockEvidenceDataManager, {
+  type Evidence,
+} from "../../app/api/dev/MockEvidenceDataManager";
+import Button from "@/components/Button";
 
 interface DiscontinueEvidenceProps {
   evidenceContractAddress: Address;
@@ -60,6 +64,8 @@ export default function DiscontinueEvidence({
       return;
     }
 
+    setIsLoading(true);
+
     try {
       const hash = await walletClient.writeContract({
         address: evidenceContractAddress,
@@ -69,9 +75,43 @@ export default function DiscontinueEvidence({
         account,
       });
 
+      // Database
+
+      const description = publicClient.readContract({
+        address: evidenceContractAddress,
+        abi: evidenceAbi,
+        functionName: "getEvidenceDescription",
+      }) as Promise<string>;
+
+      // Database write
+
+      try {
+        const description = (await publicClient.readContract({
+          address: evidenceContractAddress,
+          abi: evidenceAbi,
+          functionName: "getEvidenceDescription",
+        })) as string;
+
+        const newEvidence: Evidence = {
+          isActive: true,
+          evidenceId: evidenceId,
+          description: description,
+          creator: account,
+          currentOwner: account,
+        };
+
+        const DbSuccess = await MockEvidenceDataManager({
+          account: account,
+          accountType: "creator",
+          evidence: newEvidence,
+          call: "discontinue",
+        });
+      } catch (err) {
+        console.error("Couldnt Interact with DB: ", err);
+      }
+
       const receipt = await publicClient.waitForTransactionReceipt({ hash });
 
-      // Check if event output matches correct addresses
       const eventLog = receipt.logs
         .map((log) => {
           try {
@@ -119,12 +159,13 @@ export default function DiscontinueEvidence({
   }
 
   return (
-    <button
+    <Button
       onClick={handleOnClick}
-      disabled={isLoading}
-      className="px-4 py-2 font-bold text-white bg-red-500 rounded hover:bg-red-700 disabled:bg-gray-400"
+      variant="alert"
+      isLoading={isLoading}
+      loadingText="Discontinuing Evidence..."
     >
       Discontinue Evidence
-    </button>
+    </Button>
   );
 }

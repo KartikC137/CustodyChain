@@ -1,19 +1,10 @@
 "use client";
+
 import { useWeb3 } from "@/lib/contexts/web3/Web3Context";
+import Button from "@/components/Button";
 
 export default function ConnectWalletButton() {
   const { chain, isLoading, account, connectWallet } = useWeb3();
-
-  if (isLoading) {
-    return (
-      <button
-        disabled
-        className="px-4 py-2 font-bold text-white bg-gray-400 rounded cursor-not-allowed"
-      >
-        Connecting...
-      </button>
-    );
-  }
 
   if (account && chain) {
     return (
@@ -22,12 +13,15 @@ export default function ConnectWalletButton() {
       </p>
     );
   }
+
   return (
-    <button
+    <Button
       onClick={connectWallet}
-      className="px-4 py-2 font-bold text-white bg-blue-500 rounded hover:bg-blue-700"
+      variant="primary"
+      isLoading={isLoading}
+      loadingText="Connecting..."
     >
-      Connect Wallet
-    </button>
+      Connect MetaMask Wallet
+    </Button>
   );
 }

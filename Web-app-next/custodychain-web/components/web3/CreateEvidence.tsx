@@ -12,11 +12,16 @@ import {
 } from "viem";
 import { evidenceLedgerAbi } from "@/lib/constants/abi/evidence-ledger-abi";
 import { evidenceLedgerAddress } from "@/lib/constants/evidence-ledger-address";
+import MockEvidenceDataManager, {
+  type Evidence,
+} from "../../app/api/dev/MockEvidenceDataManager";
+import Button from "@/components/Button";
+import Input from "@/components/Input";
 import { useState } from "react";
 
 export default function CreateEvidenceForm() {
   const { account, chain, walletClient, publicClient } = useWeb3();
-  const [evidenceId, setEvidenceId] = useState<Address | null>(null);
+  const [evidenceId, setEvidenceId] = useState<`0x${string}` | null>(null);
   const [description, setDescription] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,12 +49,13 @@ export default function CreateEvidenceForm() {
     setIsLoading(true);
 
     try {
-      // Auto-generate evidence ID based on description and evidence ledger contract address
+      // Auto-generate evidence ID based on description and evidence ledger contract address and time of creation
+      const currentTime = Date.now();
       const encodedData = encodeAbiParameters(
-        parseAbiParameters("string, address"),
-        [description, evidenceLedgerAddress]
+        parseAbiParameters("string, address, uint256"),
+        [description, evidenceLedgerAddress, BigInt(currentTime)]
       );
-      const evidenceId: Address = keccak256(encodedData);
+      const evidenceId: `0x${string}` = keccak256(encodedData);
       const hash = await walletClient.writeContract({
         address: evidenceLedgerAddress,
         chain: chain,
@@ -59,6 +65,26 @@ export default function CreateEvidenceForm() {
         account,
         gas: 1_200_000n,
       });
+
+      // Database write
+      const newEvidence: Evidence = {
+        isActive: true,
+        evidenceId: evidenceId,
+        description: description,
+        creator: account,
+        currentOwner: account,
+      };
+      try {
+        const DbSuccess = await MockEvidenceDataManager({
+          account: account,
+          accountType: "creator",
+          evidence: newEvidence,
+          call: "create",
+        });
+      } catch (err) {
+        setWarning("Couldnt interact with DB, check console for error");
+        console.error("Couldnt Interact with DB: ", err);
+      }
 
       setDescription("");
       setEvidenceId(evidenceId);
@@ -88,6 +114,19 @@ export default function CreateEvidenceForm() {
           evidenceId: `0x${string}`;
           description: string;
         };
+
+        // // Send Data via route.ts for mock DB
+        // const response = await fetch("/api/evidence/add", {
+        //   method: "POST",
+        //   headers: { "Content-Type": "application/json" },
+        //   body: JSON.stringify({
+        //     evidenceId: emittedId,
+        //     description: description,
+        //     creator: emittedCreator,
+        //     currentOwner: emittedCreator,
+        //   }),
+        // });
+
         if (emittedCreator.toLowerCase() !== account.toLowerCase()) {
           setWarning(
             "Evidence Creator from contract event does not match your account"
@@ -132,28 +171,23 @@ export default function CreateEvidenceForm() {
 
   return (
     <form onSubmit={handleSubmit} className="p-6 space-y-4">
-      <h2 className="text-xl font-bold">Create New Evidence</h2>
-      <div>
-        <label htmlFor="description" className="block text-sm font-medium">
-          Evidence Description
-        </label>
-        <input
-          id="description"
-          type="text"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="e.g., Case File #123 Report"
-          className="w-full p-2 mt-1 border rounded"
-          required
-        />
-      </div>
-      <button
+      <Input
+        label="Evidence Description"
+        id="description"
+        type="text"
+        value={description}
+        onChange={(e) => setDescription(e.target.value)}
+        placeholder="e.g., Case File #123 Report"
+        required
+      />
+      <Button
         type="submit"
-        disabled={isLoading}
-        className="px-4 py-2 font-bold text-white bg-blue-500 rounded hover:bg-blue-700 disabled:bg-gray-400"
+        variant="primary"
+        isLoading={isLoading}
+        loadingText="Creaing Evidence..."
       >
-        {isLoading ? "Submitting..." : "Create Evidence on-chain"}
-      </button>
+        Create Evidence
+      </Button>
 
       {transactionHash && (
         <div className="p-2 text-sm text-green-700 bg-green-100 rounded">

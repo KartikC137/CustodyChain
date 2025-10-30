@@ -9,6 +9,11 @@ import {
   decodeEventLog,
 } from "viem";
 import { evidenceAbi } from "@/lib/constants/abi/chain-of-custody-abi";
+import MockEvidenceDataManager, {
+  type Evidence,
+} from "../../app/api/dev/MockEvidenceDataManager";
+import Button from "@/components/Button";
+import Input from "@/components/Input";
 
 interface TransferOwnershipFormProps {
   evidenceContractAddress: Address;
@@ -92,6 +97,38 @@ export default function TransferOwnershipForm({
         account,
         gas: 1_200_000n,
       });
+
+      // Database
+
+      try {
+        const description = (await publicClient.readContract({
+          address: evidenceContractAddress,
+          abi: evidenceAbi,
+          functionName: "getEvidenceDescription",
+        })) as string;
+        const evidenceId = (await publicClient.readContract({
+          address: evidenceContractAddress,
+          abi: evidenceAbi,
+          functionName: "getEvidenceId",
+        })) as `0x${string}`;
+        const newEvidence: Evidence = {
+          isActive: true,
+          evidenceId: evidenceId,
+          description: description,
+          creator: account,
+          currentOwner: account,
+        };
+        const DbSuccess = await MockEvidenceDataManager({
+          account: account,
+          accountTo: nextOwner,
+          accountType: "owner",
+          evidence: newEvidence,
+          call: "transfer",
+        });
+      } catch (err) {
+        console.error("Couldnt Interact with DB: ", err);
+      }
+
       const receipt = await publicClient.waitForTransactionReceipt({ hash });
       // Check if event output matches correct addresses
       const eventLog = receipt.logs
@@ -152,27 +189,23 @@ export default function TransferOwnershipForm({
   return (
     <form onSubmit={handleSubmit} className="p-6 border rounded-lg space-y-4">
       <h2 className="text-xl font-bold">Transfer Ownership</h2>
-      <div>
-        <label htmlFor="newOwnerAddress" className="block text-sm font-medium">
-          Enter address of New Owner
-        </label>
-        <input
-          id="newOwnerAddress"
-          type="text"
-          value={nextOwner as Address}
-          onChange={(e) => setNextOwner(e.target.value as Address)}
-          placeholder="0x..."
-          className="w-full p-2 mt-1 border rounded"
-          required
-        ></input>
-      </div>
-      <button
+      <Input
+        label="New Owner Address"
+        id="newOwnerAddress"
+        type="text"
+        value={nextOwner as Address}
+        onChange={(e) => setNextOwner(e.target.value as Address)}
+        placeholder="0x..."
+        required
+      />
+      <Button
         type="submit"
-        disabled={isLoading}
-        className="px-4 py-2 font-bold text-white bg-blue-500 rounded hover:bg-blue-700 disabled:bg-gray-400"
+        variant="warning"
+        isLoading={isLoading}
+        loadingText="Transferring Ownership..."
       >
-        {isLoading ? "Transferring..." : "Transfer Ownership"}
-      </button>
+        Transfer Ownership
+      </Button>
     </form>
   );
 }
