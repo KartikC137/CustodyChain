@@ -2,89 +2,63 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useWeb3 } from "@/lib/contexts/web3/Web3Context"; // Adjust path as needed
-import MockEvidenceDataManager from "@/app/api/dev/MockEvidenceDataManager"; // Adjust path as needed
+// 1. Import 'isLoading' from useWeb3
+import { useWeb3 } from "@/lib/contexts/web3/Web3Context";
+import {
+  useMockDb,
+  type Evidence,
+  type AccountProfile,
+} from "@/lib/contexts/MockDBContext";
 import { type Address } from "viem";
-
-interface Evidence {
-  isActive: boolean;
-  evidenceId: `0x${string}`;
-  description: string;
-  creator: Address;
-  currentOwner: Address;
-}
 
 // --- Component ---
 export default function MyEvidencePage() {
-  const { account } = useWeb3();
+  // 2. Get 'isLoading' from the provider, and rename it to avoid conflict
+  const { account, isLoading: isWeb3Loading } = useWeb3();
+  const { allAccounts } = useMockDb();
 
   const [createdEvidence, setCreatedEvidence] = useState<Evidence[]>([]);
   const [ownedEvidence, setOwnedEvidence] = useState<Evidence[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  // 3. REMOVE the component's internal 'isLoading' state
+  // const [isLoading, setIsLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    if (account) {
-      setIsLoading(true);
+    // 4. This effect will now only run when the provider is ready AND account is set
+    if (account && !isWeb3Loading) {
+      // Find the user's profile within the global state
+      const profile: AccountProfile | undefined = allAccounts.find(
+        (p) => p.address.toLowerCase() === account.toLowerCase()
+      );
 
-      // We must pass a dummy 'evidence' object to satisfy the props interface,
-      // even though the 'read' call doesn't use it.
-      const dummyEvidence: Evidence = {
-        isActive: false,
-        evidenceId: "0x0",
-        description: "",
-        creator: "0x0",
-        currentOwner: "0x0",
-      };
-
-      // Call the Data Manager to get evidence CREATED by the user
-      const createdData = MockEvidenceDataManager({
-        account: account,
-        accountType: "creator",
-        evidence: dummyEvidence,
-        call: "read",
-      });
-
-      // Call the Data Manager to get evidence OWNED by the user
-      const ownedData = MockEvidenceDataManager({
-        account: account,
-        accountType: "owner",
-        evidence: dummyEvidence,
-        call: "read",
-      });
-
-      // Process the results
-      if (Array.isArray(createdData)) {
-        setCreatedEvidence(createdData);
-      } else {
-        setCreatedEvidence([]); // Set to empty if 'false' or error
-      }
-
-      if (Array.isArray(ownedData)) {
-        // Filter out items the user also created to avoid duplicates
-        const ownedByOthers = ownedData.filter(
+      if (profile) {
+        setCreatedEvidence(profile.evidencesCreated);
+        const ownedByOthers = profile.evidencesOwned.filter(
           (ownedItem) =>
             ownedItem.creator.toLowerCase() !== account.toLowerCase()
         );
         setOwnedEvidence(ownedByOthers);
       } else {
+        setCreatedEvidence([]);
         setOwnedEvidence([]);
       }
-
-      setIsLoading(false);
-    } else {
-      // No account, clear lists and stop loading
+    } else if (!account && !isWeb3Loading) {
+      // No account *after* loading, clear lists
       setCreatedEvidence([]);
       setOwnedEvidence([]);
-      setIsLoading(false);
     }
-  }, [account]); // Re-run this logic whenever the connected account changes
+    // 5. This effect now waits for 'isWeb3Loading' to be false
+  }, [account, allAccounts, isWeb3Loading]);
 
   // --- Render Logic ---
-  if (isLoading) {
+  // 6. Use 'isWeb3Loading' as the primary loading check
+  if (isWeb3Loading) {
     return <div className="p-6 text-center">Loading your evidence...</div>;
   }
 
+  // 7. This check now happens *after* the provider is done loading
   if (!account) {
+    // This is no longer an error, it's the correct state if not connected
     return (
       <div className="p-6 text-center text-orange-600">
         Please connect your wallet to view your evidence.
@@ -109,7 +83,6 @@ export default function MyEvidencePage() {
                 >
                   {item.description} ({item.evidenceId.slice(0, 10)}...)
                 </Link>
-                {/* Show status: if user is no longer the owner */}
                 {item.currentOwner.toLowerCase() !== account.toLowerCase() && (
                   <span className="text-xs text-gray-500 ml-2">
                     (Owned by: {item.currentOwner.slice(0, 6)}...)

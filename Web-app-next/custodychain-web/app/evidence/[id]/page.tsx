@@ -1,6 +1,4 @@
-import FetchEvidence from "@/components/web3/FetchEvidence"; // Adjust path if needed
-import { type Address } from "viem";
-
+import FetchEvidence from "@/components/web3/FetchEvidence";
 interface EvidencePageProps {
   params: {
     id: string;

@@ -10,11 +10,9 @@ import {
   ContractFunctionRevertedError,
   decodeEventLog,
 } from "viem";
+import { useMockDb, type Evidence } from "@/lib/contexts/MockDBContext";
 import { evidenceLedgerAbi } from "@/lib/constants/abi/evidence-ledger-abi";
 import { evidenceLedgerAddress } from "@/lib/constants/evidence-ledger-address";
-import MockEvidenceDataManager, {
-  type Evidence,
-} from "../../app/api/dev/MockEvidenceDataManager";
 import Button from "@/components/Button";
 import Input from "@/components/Input";
 import { useState } from "react";
@@ -27,6 +25,8 @@ export default function CreateEvidenceForm() {
   const [error, setError] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
   const [transactionHash, setTransactionHash] = useState<string | null>(null);
+
+  const { dispatch } = useMockDb();
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -66,26 +66,6 @@ export default function CreateEvidenceForm() {
         gas: 1_200_000n,
       });
 
-      // Database write
-      const newEvidence: Evidence = {
-        isActive: true,
-        evidenceId: evidenceId,
-        description: description,
-        creator: account,
-        currentOwner: account,
-      };
-      try {
-        const DbSuccess = await MockEvidenceDataManager({
-          account: account,
-          accountType: "creator",
-          evidence: newEvidence,
-          call: "create",
-        });
-      } catch (err) {
-        setWarning("Couldnt interact with DB, check console for error");
-        console.error("Couldnt Interact with DB: ", err);
-      }
-
       setDescription("");
       setEvidenceId(evidenceId);
       setTransactionHash(hash);
@@ -115,17 +95,30 @@ export default function CreateEvidenceForm() {
           description: string;
         };
 
-        // // Send Data via route.ts for mock DB
-        // const response = await fetch("/api/evidence/add", {
-        //   method: "POST",
-        //   headers: { "Content-Type": "application/json" },
-        //   body: JSON.stringify({
-        //     evidenceId: emittedId,
-        //     description: description,
-        //     creator: emittedCreator,
-        //     currentOwner: emittedCreator,
-        //   }),
-        // });
+        // Database
+        try {
+          const newEvidence: Evidence = {
+            isActive: true,
+            evidenceId: emittedId,
+            description: description,
+            creator: emittedCreator,
+            currentOwner: emittedCreator,
+          };
+
+          dispatch({
+            call: "create",
+            account: emittedCreator,
+            accountType: "creator",
+            evidence: newEvidence,
+          });
+
+          console.log("Dispatched 'create' action to Mock DB.");
+        } catch (err) {
+          console.error(
+            "MockDBProvider: Couldnt dispatch create evidence: ",
+            err
+          );
+        }
 
         if (emittedCreator.toLowerCase() !== account.toLowerCase()) {
           setWarning(
@@ -170,9 +163,8 @@ export default function CreateEvidenceForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="p-6 space-y-4">
+    <form onSubmit={handleSubmit} className="grid gap-3">
       <Input
-        label="Evidence Description"
         id="description"
         type="text"
         value={description}

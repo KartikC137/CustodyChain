@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useWeb3 } from "@/lib/contexts/web3/Web3Context";
+import { useMockDb, type Evidence } from "@/lib/contexts/MockDBContext";
 import { evidenceAbi } from "@/lib/constants/abi/chain-of-custody-abi";
 import {
   type Address,
@@ -9,9 +10,6 @@ import {
   ContractFunctionRevertedError,
   decodeEventLog,
 } from "viem";
-import MockEvidenceDataManager, {
-  type Evidence,
-} from "../../app/api/dev/MockEvidenceDataManager";
 import Button from "@/components/Button";
 
 interface DiscontinueEvidenceProps {
@@ -36,6 +34,7 @@ export default function DiscontinueEvidence({
   onDiscontnueEvidenceComplete,
 }: DiscontinueEvidenceProps) {
   const { account, chain, publicClient, walletClient } = useWeb3();
+  const { dispatch } = useMockDb();
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   let errorMessage: string;
@@ -75,41 +74,6 @@ export default function DiscontinueEvidence({
         account,
       });
 
-      // Database
-
-      const description = publicClient.readContract({
-        address: evidenceContractAddress,
-        abi: evidenceAbi,
-        functionName: "getEvidenceDescription",
-      }) as Promise<string>;
-
-      // Database write
-
-      try {
-        const description = (await publicClient.readContract({
-          address: evidenceContractAddress,
-          abi: evidenceAbi,
-          functionName: "getEvidenceDescription",
-        })) as string;
-
-        const newEvidence: Evidence = {
-          isActive: true,
-          evidenceId: evidenceId,
-          description: description,
-          creator: account,
-          currentOwner: account,
-        };
-
-        const DbSuccess = await MockEvidenceDataManager({
-          account: account,
-          accountType: "creator",
-          evidence: newEvidence,
-          call: "discontinue",
-        });
-      } catch (err) {
-        console.error("Couldnt Interact with DB: ", err);
-      }
-
       const receipt = await publicClient.waitForTransactionReceipt({ hash });
 
       const eventLog = receipt.logs
@@ -131,6 +95,32 @@ export default function DiscontinueEvidence({
       } else {
         warningMessage =
           "Evidence Discontinue, but the EvidenceDiscontinued event was not found";
+      }
+
+      // Database
+
+      try {
+        const evidenceToDiscontinue: Evidence = {
+          evidenceId: evidenceId,
+          isActive: true,
+          description: "",
+          creator: creator,
+          currentOwner: "0x0",
+        };
+
+        dispatch({
+          call: "discontinue",
+          account: account,
+          accountType: "creator",
+          evidence: evidenceToDiscontinue,
+        });
+
+        console.log("Dispatched 'discontinue' action to Mock DB.");
+      } catch (err) {
+        console.error(
+          "MockDBProvider: Couldnt dispatch discontinue evidence: ",
+          err
+        );
       }
       onDiscontnueEvidenceComplete({ hash, warning: warningMessage });
     } catch (err) {

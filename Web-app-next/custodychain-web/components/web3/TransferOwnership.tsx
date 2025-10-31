@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useWeb3 } from "@/lib/contexts/web3/Web3Context";
+import { useMockDb, type Evidence } from "@/lib/contexts/MockDBContext";
 import {
   type Address,
   isAddress,
@@ -9,9 +10,6 @@ import {
   decodeEventLog,
 } from "viem";
 import { evidenceAbi } from "@/lib/constants/abi/chain-of-custody-abi";
-import MockEvidenceDataManager, {
-  type Evidence,
-} from "../../app/api/dev/MockEvidenceDataManager";
 import Button from "@/components/Button";
 import Input from "@/components/Input";
 
@@ -19,6 +17,7 @@ interface TransferOwnershipFormProps {
   evidenceContractAddress: Address;
   isActive: boolean;
   currentOwner: Address;
+  evidenceId: `0x${string}`;
   onTransferComplete: (result: TransferResult) => void;
 }
 
@@ -32,9 +31,11 @@ export default function TransferOwnershipForm({
   evidenceContractAddress,
   isActive,
   currentOwner,
+  evidenceId,
   onTransferComplete,
 }: TransferOwnershipFormProps) {
   const { account, chain, walletClient, publicClient } = useWeb3();
+  const { dispatch } = useMockDb();
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [nextOwner, setNextOwner] = useState<Address | "">("");
 
@@ -98,39 +99,7 @@ export default function TransferOwnershipForm({
         gas: 1_200_000n,
       });
 
-      // Database
-
-      try {
-        const description = (await publicClient.readContract({
-          address: evidenceContractAddress,
-          abi: evidenceAbi,
-          functionName: "getEvidenceDescription",
-        })) as string;
-        const evidenceId = (await publicClient.readContract({
-          address: evidenceContractAddress,
-          abi: evidenceAbi,
-          functionName: "getEvidenceId",
-        })) as `0x${string}`;
-        const newEvidence: Evidence = {
-          isActive: true,
-          evidenceId: evidenceId,
-          description: description,
-          creator: account,
-          currentOwner: account,
-        };
-        const DbSuccess = await MockEvidenceDataManager({
-          account: account,
-          accountTo: nextOwner,
-          accountType: "owner",
-          evidence: newEvidence,
-          call: "transfer",
-        });
-      } catch (err) {
-        console.error("Couldnt Interact with DB: ", err);
-      }
-
       const receipt = await publicClient.waitForTransactionReceipt({ hash });
-      // Check if event output matches correct addresses
       const eventLog = receipt.logs
         .map((log) => {
           try {
@@ -159,6 +128,34 @@ export default function TransferOwnershipForm({
         warningMessage =
           "Transaction succeeded, but the OwnershipTransferred event was not found";
       }
+
+      // Database
+
+      try {
+        const evidenceToUpdate: Evidence = {
+          evidenceId: evidenceId,
+          isActive: true,
+          description: "",
+          creator: "0x0",
+          currentOwner: account,
+        };
+
+        dispatch({
+          call: "transfer",
+          account: account,
+          accountType: "owner",
+          evidence: evidenceToUpdate,
+          accountTo: nextOwner,
+        });
+
+        console.log("Dispatched 'discontinue' action to Mock DB.");
+      } catch (err) {
+        console.error(
+          "MockDBProvider: Couldnt dispatch Transfer evidence: ",
+          err
+        );
+      }
+
       onTransferComplete({ hash, warning: warningMessage });
     } catch (err) {
       console.error("Transaction failed:", err);

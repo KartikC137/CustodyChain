@@ -21,15 +21,17 @@ export default function Button({
   ...props
 }: ButtonProps) {
   const baseStyles =
-    "px-4 py-2 font-bold rounded focus:outline-none focus:ring-2 focus:ring-offset-2 transition ease-in-out duration-150 disabled:opacity-50 disabled:cursor-not-allowed";
+    "px-4 py-3 text-lg font-bold rounded focus:outline-none focus:ring-2 focus:ring-offset-2 transition ease-in-out duration-150 disabled:opacity-50 disabled:cursor-not-allowed";
 
   const variantStyles: Record<ButtonVariant, string> = {
-    primary: "bg-blue-500 hover:bg-blue-700 text-white focus:ring-blue-500",
+    primary:
+      "text-white border-2 border-blue-700 hover:border-blue-900 bg-blue-500 hover:bg-blue-700 focus:ring-blue-500",
     secondary:
-      "bg-gray-200 hover:bg-gray-300 text-gray-800 focus:ring-gray-500",
+      "text-white border-2 border-gray-700 hover:border-gray-900 bg-gray-500 hover:bg-gray-700 focus:ring-gray-500",
     warning:
-      "bg-yellow-500 hover:bg-yellow-600 text-white focus:ring-yellow-500",
-    alert: "bg-red-600 hover:bg-red-700 text-white focus:ring-red-500",
+      "text-white border-2 border-yellow-700 hover:border-yellow-900 bg-yellow-500 hover:bg-yellow-700 focus:ring-yellow-500",
+    alert:
+      "text-white border-2 border-red-700 hover:border-red-700 bg-red-500 hover:bg-red-700 focus:ring-red-500",
   };
 
   const combinedClassName = `${baseStyles} ${variantStyles[variant]} ${

@@ -214,9 +214,7 @@ export default function FetchEvidence({ evidenceId }: FetchEvidenceProps) {
   }
 
   return (
-    <div className="p-6 space-y-4 mx-auto">
-      <h1 className="text-2xl font-bold">Evidence Details</h1>
-
+    <div>
       {/* Evidence Details */}
 
       {evidenceDetails && (
@@ -381,11 +379,10 @@ export default function FetchEvidence({ evidenceId }: FetchEvidenceProps) {
         account?.toLowerCase() ===
           evidenceDetails.currentOwner.toLowerCase() && (
           <TransferOwnershipForm
-            evidenceContractAddress={
-              evidenceDetails?.contractAddress as Address
-            }
-            isActive={evidenceDetails?.isActive as boolean}
-            currentOwner={evidenceDetails?.currentOwner as Address}
+            evidenceContractAddress={evidenceDetails.contractAddress as Address}
+            isActive={evidenceDetails.isActive as boolean}
+            currentOwner={evidenceDetails.currentOwner as Address}
+            evidenceId={evidenceDetails.id as `0x${string}`}
             onTransferComplete={handleTransferComplete}
           />
         )}

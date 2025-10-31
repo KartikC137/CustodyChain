@@ -25,9 +25,8 @@ export default function FetchEvidenceForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="p-6 space-y-4">
+    <form onSubmit={handleSubmit} className="grid gap-3">
       <Input
-        label="Enter Evidence ID"
         id="evidenceIdInput"
         type="text"
         value={evidenceIdInput}

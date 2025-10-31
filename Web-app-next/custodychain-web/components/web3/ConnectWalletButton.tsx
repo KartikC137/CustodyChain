@@ -5,23 +5,27 @@ import Button from "@/components/Button";
 
 export default function ConnectWalletButton() {
   const { chain, isLoading, account, connectWallet } = useWeb3();
-
-  if (account && chain) {
+  if (!account || !chain) {
     return (
-      <p className="font-mono font-bold">
-        User: {account} @ {chain?.name}
-      </p>
+      <Button
+        onClick={connectWallet}
+        variant="primary"
+        isLoading={isLoading}
+        loadingText="Connecting..."
+      >
+        Connect MetaMask Wallet
+      </Button>
     );
   }
-
+  if (isLoading) {
+    return <p>"Connecting to Account ${account}..."</p>;
+  }
   return (
-    <Button
-      onClick={connectWallet}
-      variant="primary"
-      isLoading={isLoading}
-      loadingText="Connecting..."
-    >
-      Connect MetaMask Wallet
-    </Button>
+    <div>
+      <p>
+        {chain.name}: {chain.id}
+      </p>
+      <p>{account}</p>
+    </div>
   );
 }
