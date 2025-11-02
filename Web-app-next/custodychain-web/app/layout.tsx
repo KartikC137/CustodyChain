@@ -27,12 +27,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`grid grid-cols-[0.8fr_2fr] h-screen ${monsterrat.variable} antialiased`}
+        className={`p-4 grid grid-cols-[0.8fr_2fr] h-screen ${monsterrat.variable} antialiased`}
       >
         <Web3Provider>
           <MockDbProvider>
-            <div className="p-5 flex flex-col space-y-2">
-              <div className="p-5 rounded-md font-mono font-semibold bg-green-100 border-2 border-green-600">
+            <div className="pr-4 flex flex-col space-y-2">
+              <div className="p-5 rounded-md font-mono font-semibold bg-green-100 border-2 border-green-700">
                 <Link
                   href="/"
                   className="text-4xl text-blue-600 hover:text-blue-800"
@@ -46,11 +46,7 @@ export default function RootLayout({
               <Navbar />
               <ActivityPanel />
             </div>
-            <div className="py-5 pr-5">
-              <div className="flex items-center justify-center h-full rounded-md bg-orange-50 border-2 border-orange-600">
-                {children}
-              </div>
-            </div>
+            {children}
           </MockDbProvider>
         </Web3Provider>
       </body>

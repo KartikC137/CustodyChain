@@ -17,7 +17,7 @@ interface DiscontinueEvidenceProps {
   evidenceId: `0x${string}`;
   isActive: boolean;
   creator: Address;
-  onDiscontnueEvidenceComplete: (result: DiscontinueEvidenceResult) => void;
+  onDiscontinueEvidenceComplete: (result: DiscontinueEvidenceResult) => void;
 }
 
 export interface DiscontinueEvidenceResult {
@@ -31,7 +31,7 @@ export default function DiscontinueEvidence({
   evidenceId,
   isActive,
   creator,
-  onDiscontnueEvidenceComplete,
+  onDiscontinueEvidenceComplete,
 }: DiscontinueEvidenceProps) {
   const { account, chain, publicClient, walletClient } = useWeb3();
   const { dispatch } = useMockDb();
@@ -43,13 +43,13 @@ export default function DiscontinueEvidence({
   async function handleOnClick() {
     if (!publicClient || !walletClient || !account || !chain) {
       errorMessage = "Please connect your wallet first.";
-      onDiscontnueEvidenceComplete({ error: errorMessage });
+      onDiscontinueEvidenceComplete({ error: errorMessage });
       return;
     }
 
     if (!isActive) {
       errorMessage = "This Evidence is not Active";
-      onDiscontnueEvidenceComplete({ error: errorMessage });
+      onDiscontinueEvidenceComplete({ error: errorMessage });
       return;
     }
 
@@ -59,7 +59,7 @@ export default function DiscontinueEvidence({
       account.toLowerCase() != creator.toLowerCase()
     ) {
       errorMessage = "Only Creator Can Discontinue Evidence";
-      onDiscontnueEvidenceComplete({ error: errorMessage });
+      onDiscontinueEvidenceComplete({ error: errorMessage });
       return;
     }
 
@@ -122,7 +122,7 @@ export default function DiscontinueEvidence({
           err
         );
       }
-      onDiscontnueEvidenceComplete({ hash, warning: warningMessage });
+      onDiscontinueEvidenceComplete({ hash, warning: warningMessage });
     } catch (err) {
       console.error("Transaction failed:", err);
       if (err instanceof ContractFunctionRevertedError) {
@@ -142,7 +142,7 @@ export default function DiscontinueEvidence({
       } else {
         errorMessage = "An unexpected error occured. See console for details.";
       }
-      onDiscontnueEvidenceComplete({ error: errorMessage });
+      onDiscontinueEvidenceComplete({ error: errorMessage });
     } finally {
       setIsLoading(false);
     }

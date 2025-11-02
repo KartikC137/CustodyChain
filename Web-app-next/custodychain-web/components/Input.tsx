@@ -15,7 +15,7 @@ export default function Input({
   ...props
 }: InputProps) {
   const baseStyles =
-    "w-full px-3 py-2 text-lg text-red-700 font-mono rounded border-2 border-orange-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-orange-700 disabled:bg-gray-100";
+    "w-full px-3 py-2 text-lg text-red-700 font-mono rounded border-2 border-orange-600 focus:outline-none focus:bg-white focus:ring-1 focus:ring-orange-400 disabled:bg-gray-100";
   const errorStyles = error
     ? "border-red-500 focus:ring-red-500"
     : "border-gray-300";
@@ -25,7 +25,10 @@ export default function Input({
   return (
     <div>
       {label && (
-        <label htmlFor={id} className="block text-sm font-medium text-gray-700">
+        <label
+          htmlFor={id}
+          className="block text-sm font-medium text-orange-900"
+        >
           {label}
         </label>
       )}

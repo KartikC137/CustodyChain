@@ -67,29 +67,31 @@ export default function MyEvidencePage() {
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-4xl mx-auto">
-      <h1 className="text-2xl font-bold">My Evidence Profile</h1>
+    <div className="p-10 space-y-6 bg-orange-50 rounded-md border-2 border-orange-700">
+      <h1 className="font-sans font-[500] text-4xl text-orange-700">
+        My Evidence Profile
+      </h1>
 
       {/* Section for Created Evidence */}
-      <section className="p-4 border rounded-lg bg-gray-50 shadow-sm">
-        <h2 className="text-lg font-semibold mb-3">Evidence You Created</h2>
+      <section className="space-y-4 p-4 bg-green-50 text-green-800 rounded-sm border-2 border-green-700">
+        <h2 className="text-xl font-semibold">Evidence You Created</h2>
         {createdEvidence.length > 0 ? (
           <ul className="space-y-2 list-disc list-inside">
             {createdEvidence.map((item) => (
-              <li key={item.evidenceId}>
+              <li key={item.evidenceId} className="text-orange-800">
                 <Link
                   href={`/evidence/${item.evidenceId}`}
-                  className="text-blue-600 hover:underline font-mono text-sm"
+                  className="hover:underline font-mono font-semibold text-lg"
                 >
-                  {item.description} ({item.evidenceId.slice(0, 10)}...)
+                  {item.description} ({item.evidenceId})
                 </Link>
                 {item.currentOwner.toLowerCase() !== account.toLowerCase() && (
-                  <span className="text-xs text-gray-500 ml-2">
+                  <span className="text-lg text-gray-500 ml-2">
                     (Owned by: {item.currentOwner.slice(0, 6)}...)
                   </span>
                 )}
                 {!item.isActive && (
-                  <span className="text-xs text-red-500 ml-2">
+                  <span className="text-lg text-red-500 ml-2">
                     (Discontinued)
                   </span>
                 )}
@@ -104,25 +106,25 @@ export default function MyEvidencePage() {
       </section>
 
       {/* Section for Owned Evidence (Created by Others) */}
-      <section className="p-4 border rounded-lg bg-gray-50 shadow-sm">
-        <h2 className="text-lg font-semibold mb-3">
+      <section className="space-y-4 p-4 bg-green-50 text-green-800 rounded-sm border-2 border-green-700">
+        <h2 className="text-xl font-semibold">
           Evidence You Own (from others)
         </h2>
         {ownedEvidence.length > 0 ? (
           <ul className="space-y-2 list-disc list-inside">
             {ownedEvidence.map((item) => (
-              <li key={item.evidenceId}>
+              <li key={item.evidenceId} className="text-orange-800">
                 <Link
                   href={`/evidence/${item.evidenceId}`}
-                  className="text-blue-600 hover:underline font-mono text-sm"
+                  className="hover:underline font-mono font-semibold text-lg"
                 >
-                  {item.description} ({item.evidenceId.slice(0, 10)}...)
+                  {item.description} ({item.evidenceId})
                 </Link>
-                <span className="text-xs text-gray-500 ml-2">
+                <span className="text-lg text-gray-500 ml-2">
                   (From: {item.creator.slice(0, 6)}...)
                 </span>
                 {!item.isActive && (
-                  <span className="text-xs text-red-500 ml-2">
+                  <span className="text-lg text-red-500 ml-2">
                     (Discontinued)
                   </span>
                 )}

@@ -184,7 +184,10 @@ export default function TransferOwnershipForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="p-6 border rounded-lg space-y-4">
+    <form
+      onSubmit={handleSubmit}
+      className="p-6 rounded-sm bg-green-50 border-2 border-green-700 text-green-800 space-y-3"
+    >
       <h2 className="text-xl font-bold">Transfer Ownership</h2>
       <Input
         label="New Owner Address"
