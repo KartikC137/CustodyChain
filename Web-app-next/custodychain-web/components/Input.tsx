@@ -15,7 +15,7 @@ export default function Input({
   ...props
 }: InputProps) {
   const baseStyles =
-    "w-full px-3 py-2 text-lg text-red-700 font-mono rounded border-2 border-orange-600 focus:outline-none focus:bg-white focus:ring-1 focus:ring-orange-400 disabled:bg-gray-100";
+    "w-full px-3 py-2 text-lg text-red-700 font-mono bg-orange-50 rounded border-2 border-orange-600 focus:outline-none focus:bg-white focus:ring-1 focus:ring-orange-400 disabled:bg-gray-100";
   const errorStyles = error
     ? "border-red-500 focus:ring-red-500"
     : "border-gray-300";

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useWeb3 } from "@/lib/contexts/web3/Web3Context";
 import { useMockDb, type Evidence } from "@/lib/contexts/MockDBContext";
+import { useActivityManager } from "@/lib/contexts/ActivityManagerContext";
 import { evidenceAbi } from "@/lib/constants/abi/chain-of-custody-abi";
 import {
   type Address,
@@ -34,8 +35,10 @@ export default function DiscontinueEvidence({
   onDiscontinueEvidenceComplete,
 }: DiscontinueEvidenceProps) {
   const { account, chain, publicClient, walletClient } = useWeb3();
-  const { dispatch } = useMockDb();
   const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  const { dispatch: mockDbDispatch } = useMockDb();
+  const { dispatch: activityManagerDispatch } = useActivityManager();
 
   let errorMessage: string;
   let warningMessage: string;
@@ -108,20 +111,43 @@ export default function DiscontinueEvidence({
           currentOwner: "0x0",
         };
 
-        dispatch({
+        mockDbDispatch({
           call: "discontinue",
           account: account,
           accountType: "creator",
           evidence: evidenceToDiscontinue,
         });
-
-        console.log("Dispatched 'discontinue' action to Mock DB.");
+        console.log(
+          "MockDBProvider: Dispatched 'discontinue' action to Mock DB."
+        );
       } catch (err) {
         console.error(
           "MockDBProvider: Couldnt dispatch discontinue evidence: ",
           err
         );
       }
+
+      // Activity Manager
+
+      try {
+        activityManagerDispatch({
+          address: account,
+          evidenceId: evidenceId,
+          activityType: "discontinue",
+          transferredTo: null,
+          time: new Date(),
+        });
+
+        console.log(
+          "ActivityManagerProvider: Dispatched 'discontinue' action to Mock DB."
+        );
+      } catch (err) {
+        console.error(
+          "ActivityManagerProvider: Couldnt dispatch disconitinue evidence: ",
+          err
+        );
+      }
+
       onDiscontinueEvidenceComplete({ hash, warning: warningMessage });
     } catch (err) {
       console.error("Transaction failed:", err);

@@ -6,7 +6,7 @@ import { useWeb3 } from "@/lib/contexts/web3/Web3Context";
 import { type Address } from "viem";
 import fetchEvidence, {
   type EvidenceDetails,
-} from "@/components/web3/FetchEvidence";
+} from "@/app/api/web3/FetchEvidence";
 import TransferOwnershipForm, {
   type TransferResult,
 } from "@/components/web3/TransferOwnership";
@@ -57,6 +57,13 @@ export default function EvidencePage() {
     );
   }
 
+  if (!account) {
+    return (
+      <div className="font-mono text-center text-xl text-red-500">
+        Connect Your Wallet to view Evidence
+      </div>
+    );
+  }
   if (!evidenceDetails) {
     return (
       <div className="font-mono text-center text-xl text-red-500">
@@ -127,7 +134,16 @@ export default function EvidencePage() {
         </div>
       </div>
 
-      <div className="gap-8 grid grid-cols-[1.3fr_1fr]">
+      <div
+        className={`grid gap-8
+          ${
+            evidenceDetails.isActive &&
+            (evidenceDetails.creator.toLowerCase() == account ||
+              evidenceDetails.currentOwner.toLowerCase() == account)
+              ? "gap-8 grid grid-cols-[1.3fr_1fr]"
+              : ""
+          }`}
+      >
         {/* Chain Of Custody*/}
 
         <div className="space-y-4">

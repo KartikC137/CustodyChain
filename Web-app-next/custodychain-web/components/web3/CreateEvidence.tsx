@@ -11,6 +11,7 @@ import {
   decodeEventLog,
 } from "viem";
 import { useMockDb, type Evidence } from "@/lib/contexts/MockDBContext";
+import { useActivityManager } from "@/lib/contexts/ActivityManagerContext";
 import { evidenceLedgerAbi } from "@/lib/constants/abi/evidence-ledger-abi";
 import { evidenceLedgerAddress } from "@/lib/constants/evidence-ledger-address";
 import Button from "@/components/Button";
@@ -26,7 +27,8 @@ export default function CreateEvidenceForm() {
   const [warning, setWarning] = useState<string | null>(null);
   const [transactionHash, setTransactionHash] = useState<string | null>(null);
 
-  const { dispatch } = useMockDb();
+  const { dispatch: mockDbDispatch } = useMockDb();
+  const { dispatch: activityManagerDispatch } = useActivityManager();
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -105,17 +107,38 @@ export default function CreateEvidenceForm() {
             currentOwner: emittedCreator,
           };
 
-          dispatch({
+          mockDbDispatch({
             call: "create",
             account: emittedCreator,
             accountType: "creator",
             evidence: newEvidence,
           });
 
-          console.log("Dispatched 'create' action to Mock DB.");
+          console.log("MockDBProvider: Dispatched 'create' action to Mock DB.");
         } catch (err) {
           console.error(
             "MockDBProvider: Couldnt dispatch create evidence: ",
+            err
+          );
+        }
+
+        // Activity Manager
+
+        try {
+          activityManagerDispatch({
+            address: account,
+            evidenceId: emittedId,
+            activityType: "create",
+            transferredTo: null,
+            time: new Date(),
+          });
+
+          console.log(
+            "ActivityManagerProvider: Dispatched 'create' action to Mock DB."
+          );
+        } catch (err) {
+          console.error(
+            "ActivityManagerProvider: Couldnt dispatch create evidence: ",
             err
           );
         }
@@ -176,7 +199,7 @@ export default function CreateEvidenceForm() {
         type="submit"
         variant="primary"
         isLoading={isLoading}
-        loadingText="Creaing Evidence..."
+        loadingText="Creating Evidence..."
       >
         Create Evidence
       </Button>

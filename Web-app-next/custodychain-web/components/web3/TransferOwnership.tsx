@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useWeb3 } from "@/lib/contexts/web3/Web3Context";
 import { useMockDb, type Evidence } from "@/lib/contexts/MockDBContext";
+import { useActivityManager } from "@/lib/contexts/ActivityManagerContext";
 import {
   type Address,
   isAddress,
@@ -35,9 +36,12 @@ export default function TransferOwnershipForm({
   onTransferComplete,
 }: TransferOwnershipFormProps) {
   const { account, chain, walletClient, publicClient } = useWeb3();
-  const { dispatch } = useMockDb();
+
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [nextOwner, setNextOwner] = useState<Address | "">("");
+
+  const { dispatch: mockDbDispatch } = useMockDb();
+  const { dispatch: activityManagerDispatch } = useActivityManager();
 
   let errorMessage: string;
   let warningMessage: string;
@@ -132,7 +136,7 @@ export default function TransferOwnershipForm({
       // Database
 
       try {
-        const evidenceToUpdate: Evidence = {
+        const evidenceToTransfer: Evidence = {
           evidenceId: evidenceId,
           isActive: true,
           description: "",
@@ -140,18 +144,38 @@ export default function TransferOwnershipForm({
           currentOwner: account,
         };
 
-        dispatch({
+        mockDbDispatch({
           call: "transfer",
           account: account,
           accountType: "owner",
-          evidence: evidenceToUpdate,
+          evidence: evidenceToTransfer,
           accountTo: nextOwner,
         });
-
-        console.log("Dispatched 'discontinue' action to Mock DB.");
+        console.log("MockDBProvider: Dispatched 'transfer' action to Mock DB.");
       } catch (err) {
         console.error(
-          "MockDBProvider: Couldnt dispatch Transfer evidence: ",
+          "MockDBProvider: Couldnt dispatch transfer evidence: ",
+          err
+        );
+      }
+
+      // Activity Manager
+
+      try {
+        activityManagerDispatch({
+          address: account,
+          evidenceId: evidenceId,
+          activityType: "transfer",
+          transferredTo: nextOwner,
+          time: new Date(),
+        });
+
+        console.log(
+          "ActivityManagerProvider: Dispatched 'transfer' action to Mock DB."
+        );
+      } catch (err) {
+        console.error(
+          "ActivityManagerProvider: Couldnt dispatch transfer evidence: ",
           err
         );
       }

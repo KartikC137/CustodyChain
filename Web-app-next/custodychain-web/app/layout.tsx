@@ -4,6 +4,7 @@ import "./globals.css";
 import Link from "next/link";
 import Web3Provider from "@/components/web3/Web3Provider";
 import { MockDbProvider } from "@/components/db/MockDBProvider";
+import { ActivityManagerProvider } from "@/components/logs/ActivityManagerProvider";
 import Navbar from "@/components/layout/Navbar";
 import ActivityPanel from "@/components/layout/ActivityPanel";
 import ConnectWalletButton from "@/components/web3/ConnectWalletButton";
@@ -30,7 +31,7 @@ export default function RootLayout({
         className={`p-4 grid grid-cols-[0.8fr_2fr] h-screen ${monsterrat.variable} antialiased`}
       >
         <Web3Provider>
-          <MockDbProvider>
+          <ActivityManagerProvider>
             <div className="pr-4 flex flex-col space-y-2">
               <div className="p-5 rounded-md font-mono font-semibold bg-green-100 border-2 border-green-700">
                 <Link
@@ -46,8 +47,8 @@ export default function RootLayout({
               <Navbar />
               <ActivityPanel />
             </div>
-            {children}
-          </MockDbProvider>
+            <MockDbProvider>{children}</MockDbProvider>
+          </ActivityManagerProvider>
         </Web3Provider>
       </body>
     </html>

@@ -27,7 +27,7 @@ export interface EvidenceDetails {
 }
 
 export default function fetchEvidence(evidenceId: `0x${string}`) {
-  const { account, publicClient } = useWeb3();
+  const { publicClient } = useWeb3();
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
