@@ -55,13 +55,6 @@ export const evidenceAbi = [
   },
   {
     type: "function",
-    name: "getCurrentOwnerTranfserTime",
-    inputs: [],
-    outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
-    stateMutability: "view",
-  },
-  {
-    type: "function",
     name: "getEvidenceCreator",
     inputs: [],
     outputs: [{ name: "", type: "address", internalType: "address" }],
@@ -139,7 +132,7 @@ export const evidenceAbi = [
         internalType: "address",
       },
       {
-        name: "TIME_OF_DISCONTINUATION",
+        name: "timeOfTransfer",
         type: "uint256",
         indexed: true,
         internalType: "uint256",
