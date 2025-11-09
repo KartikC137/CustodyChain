@@ -88,7 +88,7 @@ export default function EvidencePage() {
 
   return (
     <div
-      className={`h-full p-8 flex flex-col space-y-5 rounded-md ${
+      className={`h-full px-8 pt-8 space-y-5 rounded-md ${
         evidenceDetails.isActive
           ? "bg-orange-50 border-2 border-orange-700"
           : "bg-gray-50 border-2 border-gray-400"
@@ -140,8 +140,8 @@ export default function EvidencePage() {
             evidenceDetails.isActive &&
             (evidenceDetails.creator.toLowerCase() == account ||
               evidenceDetails.currentOwner.toLowerCase() == account)
-              ? "gap-8 grid grid-cols-[1.3fr_1fr]"
-              : ""
+              ? "grid-cols-[1.3fr_1fr]"
+              : "h-140"
           }`}
       >
         {/* Chain Of Custody*/}
@@ -152,7 +152,7 @@ export default function EvidencePage() {
           </p>
 
           <nav
-            className="rounded-t-sm border-2 border-orange-700 bg-orange-50 grid grid-cols-[1fr_1fr] font-mono font-[500] text-orange-900"
+            className="grid grid-cols-[1fr_1fr] rounded-t-sm border-2 border-orange-700 bg-orange-50 font-mono font-[500] text-orange-900"
             aria-label="Tabs"
           >
             <button
@@ -177,7 +177,7 @@ export default function EvidencePage() {
             </button>
           </nav>
 
-          <div className="p-4 bg-green-50 rounded-b-sm border-2 border-green-700">
+          <div className="max-h-140 overflow-y-scroll p-4 bg-green-50 rounded-b-sm border-2 border-green-700">
             {/* View Select Tabs*/}
             {activeTab === "list" ? (
               <ul className="space-y-1 list-decimal list-inside">
@@ -296,7 +296,7 @@ export default function EvidencePage() {
 
       {/* LOGS */}
 
-      {transferResult?.hash && (
+      {/* {transferResult?.hash && (
         <div className="p-2 text-sm text-green-700 bg-green-100 rounded">
           Ownership Transferred. Tx. Hash: {transferResult.hash}
         </div>
@@ -325,7 +325,7 @@ export default function EvidencePage() {
         <div className="p-2 text-sm text-orange-700 bg-orange-100 rounded">
           Error: {discontinueResult.error}
         </div>
-      )}
+      )} */}
     </div>
   );
 }

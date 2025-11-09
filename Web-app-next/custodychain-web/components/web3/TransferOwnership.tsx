@@ -43,6 +43,8 @@ export default function TransferOwnershipForm({
   const { dispatch: mockDbDispatch } = useMockDb();
   const { dispatch: activityManagerDispatch } = useActivityManager();
 
+  const [error, setError] = useState<string | undefined>(undefined);
+  const [txHash, setTxHash] = useState<string | null>(null);
   let errorMessage: string;
   let warningMessage: string;
 
@@ -62,8 +64,7 @@ export default function TransferOwnershipForm({
     }
 
     if (!nextOwner || !isAddress(nextOwner)) {
-      errorMessage = "Please enter a valid Ethereum address. (Begin with 0x)";
-      onTransferComplete({ error: errorMessage });
+      setError("Please enter a valid Ethereum address. (Begin with 0x)");
       return;
     }
 
@@ -72,14 +73,12 @@ export default function TransferOwnershipForm({
       !isAddress(currentOwner) ||
       account.toLowerCase() != currentOwner.toLowerCase()
     ) {
-      errorMessage = "Only Current Owner Can Transfer Ownership";
-      onTransferComplete({ error: errorMessage });
+      setError("Only Current Owner Can Transfer Ownership");
       return;
     }
 
     if (account.toLowerCase() == nextOwner.toLowerCase()) {
-      errorMessage = "You are the Current Owner!";
-      onTransferComplete({ error: errorMessage });
+      setError("You are the Current Owner");
       return;
     }
 
@@ -102,6 +101,8 @@ export default function TransferOwnershipForm({
         account,
         gas: 1_200_000n,
       });
+
+      setTxHash(hash);
 
       const receipt = await publicClient.waitForTransactionReceipt({ hash });
       const eventLog = receipt.logs
@@ -128,56 +129,62 @@ export default function TransferOwnershipForm({
           warningMessage =
             "The Contract Event's New Owner does not match the intended address";
         }
+
+        // Database
+
+        try {
+          const evidenceToTransfer: Evidence = {
+            evidenceId: evidenceId,
+            isActive: true,
+            description: "",
+            creator: "0x0",
+            currentOwner: account,
+          };
+
+          mockDbDispatch({
+            call: "transfer",
+            account: account,
+            accountType: "owner",
+            evidence: evidenceToTransfer,
+            accountTo: nextOwner,
+          });
+          console.log(
+            "MockDBProvider: Dispatched 'transfer' action to Mock DB."
+          );
+        } catch (err) {
+          warningMessage =
+            "MockDBProvider: Couldnt dispatch transfer evidence. See console for details";
+          console.error(
+            "MockDBProvider: Couldnt dispatch transfer evidence",
+            err
+          );
+        }
+
+        // Activity Manager
+
+        try {
+          activityManagerDispatch({
+            address: account,
+            evidenceId: evidenceId,
+            activityType: "transfer",
+            transferredTo: nextOwner,
+            time: new Date(),
+          });
+
+          console.log(
+            "ActivityManagerProvider: Dispatched 'transfer' action to Mock DB."
+          );
+        } catch (err) {
+          warningMessage =
+            "ActivityManagerProvider: Couldnt dispatch transfer evidence. See console for details";
+          console.error(
+            "ActivityManagerProvider: Couldnt dispatch transfer evidence: ",
+            err
+          );
+        }
       } else {
         warningMessage =
-          "Transaction succeeded, but the OwnershipTransferred event was not found";
-      }
-
-      // Database
-
-      try {
-        const evidenceToTransfer: Evidence = {
-          evidenceId: evidenceId,
-          isActive: true,
-          description: "",
-          creator: "0x0",
-          currentOwner: account,
-        };
-
-        mockDbDispatch({
-          call: "transfer",
-          account: account,
-          accountType: "owner",
-          evidence: evidenceToTransfer,
-          accountTo: nextOwner,
-        });
-        console.log("MockDBProvider: Dispatched 'transfer' action to Mock DB.");
-      } catch (err) {
-        console.error(
-          "MockDBProvider: Couldnt dispatch transfer evidence: ",
-          err
-        );
-      }
-
-      // Activity Manager
-
-      try {
-        activityManagerDispatch({
-          address: account,
-          evidenceId: evidenceId,
-          activityType: "transfer",
-          transferredTo: nextOwner,
-          time: new Date(),
-        });
-
-        console.log(
-          "ActivityManagerProvider: Dispatched 'transfer' action to Mock DB."
-        );
-      } catch (err) {
-        console.error(
-          "ActivityManagerProvider: Couldnt dispatch transfer evidence: ",
-          err
-        );
+          "Transaction succeeded, but the OwnershipTransferred Event was not found, MockDB and Activity log is not updated";
       }
 
       onTransferComplete({ hash, warning: warningMessage });
@@ -220,6 +227,7 @@ export default function TransferOwnershipForm({
         value={nextOwner as Address}
         onChange={(e) => setNextOwner(e.target.value as Address)}
         placeholder="0x..."
+        error={error}
         required
       />
       <Button

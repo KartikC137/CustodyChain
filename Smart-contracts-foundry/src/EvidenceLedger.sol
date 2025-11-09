@@ -14,17 +14,12 @@ contract EvidenceLedger {
 
     Evidence private evidence;
 
-    mapping(bytes32 evidenceId => Evidence evidence)
-        private evidenceIdToEvidence;
+    mapping(bytes32 evidenceId => Evidence evidence) private evidenceIdToEvidence;
 
     //////////////
     // Events  ///
     //////////////
-    event EvidenceCreated(
-        address indexed creator,
-        bytes32 indexed evidenceId,
-        string indexed description
-    );
+    event EvidenceCreated(address indexed creator, bytes32 indexed evidenceId, string indexed description);
 
     //////////////////
     // Modifiers   ///
@@ -36,33 +31,18 @@ contract EvidenceLedger {
 
     // External Functions
 
-    function createEvidence(
-        bytes32 evidenceId,
-        string memory description
-    ) external {
-        evidence = new Evidence(
-            address(this),
-            evidenceId,
-            msg.sender,
-            msg.sender,
-            description
-        );
+    function createEvidence(bytes32 evidenceId, string memory description) external {
+        evidence = new Evidence(address(this), evidenceId, msg.sender, msg.sender, description);
         evidenceIdToEvidence[evidenceId] = evidence;
         emit EvidenceCreated(msg.sender, evidenceId, description);
     }
 
     // Public and External View Functions
-    function getEvidenceLedgerStatus()
-        external
-        pure
-        returns (bool evidenceLedgerCreated)
-    {
+    function getEvidenceLedgerStatus() external pure returns (bool evidenceLedgerCreated) {
         evidenceLedgerCreated = true;
     }
 
-    function getEvidenceContractAddress(
-        bytes32 evidenceId
-    ) external view returns (address evidenceContractAddress) {
+    function getEvidenceContractAddress(bytes32 evidenceId) external view returns (address evidenceContractAddress) {
         evidenceContractAddress = address(evidenceIdToEvidence[evidenceId]);
     }
 }

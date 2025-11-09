@@ -43,11 +43,7 @@ contract Evidence {
     //////////////
     // Events  ///
     //////////////
-    event OwnershipTransferred(
-        address indexed previousOwner,
-        address indexed newOwner,
-        uint256 indexed TIME_OF_DISCONTINUATION
-    );
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner, uint256 indexed timeOfTransfer);
     event EvindenceDiscontinued(bytes32 indexed evidenceId);
 
     //////////////////
@@ -81,23 +77,25 @@ contract Evidence {
         address _initialOwner,
         string memory _description
     ) {
-        if (msg.sender != _evidenceLedgerAddress)
+        if (msg.sender != _evidenceLedgerAddress) {
             revert Error_UnauthorizedDeployment();
+        }
         if (_initialOwner != _creator) revert Error_CreatorIsNotInitialOwner();
-        if (_creator == address(0))
+        if (_creator == address(0)) {
             revert("Invalid Creator: cannot be zero address");
-        if (_evidenceId == 0x0)
+        }
+        if (_evidenceId == 0x0) {
             revert("Invalid evidence ID: ID cannot be empty");
-        if (bytes(_description).length == 0)
+        }
+        if (bytes(_description).length == 0) {
             revert("Invalid description: description cannot be empty");
+        }
 
         ORIGINAL_EVIDENCE_LEDGER_ADDRESS = _evidenceLedgerAddress;
         CREATOR = _creator;
         owner = CREATOR;
         TIME_OF_CREATION = block.timestamp;
-        chainOfCustody.push(
-            CustodyRecord({owner: _creator, timestamp: TIME_OF_CREATION})
-        );
+        chainOfCustody.push(CustodyRecord({owner: _creator, timestamp: TIME_OF_CREATION}));
         EVIDENCE_ID = _evidenceId;
         description = _description;
     }
@@ -106,11 +104,7 @@ contract Evidence {
     function transferOwnership(address newOwner) external onlyIfActive {
         address previousOwner = owner;
         _transferOwnership(msg.sender, newOwner);
-        emit OwnershipTransferred(
-            previousOwner,
-            newOwner,
-            TIME_OF_DISCONTINUATION
-        );
+        emit OwnershipTransferred(previousOwner, newOwner, block.timestamp);
     }
 
     function discontinueEvidence() external onlyIfActive {
@@ -119,14 +113,9 @@ contract Evidence {
     }
 
     // Private & Internal Functions View function
-    function _transferOwnership(
-        address _from,
-        address _to
-    ) private onlyCurrentOwner(_from) {
+    function _transferOwnership(address _from, address _to) private onlyCurrentOwner(_from) {
         owner = _to;
-        chainOfCustody.push(
-            CustodyRecord({owner: _to, timestamp: block.timestamp})
-        );
+        chainOfCustody.push(CustodyRecord({owner: _to, timestamp: block.timestamp}));
     }
 
     function _discontinueEvidence() private onlyCreator {
@@ -159,11 +148,7 @@ contract Evidence {
         return owner;
     }
 
-    function getChainOfCustody()
-        external
-        view
-        returns (CustodyRecord[] memory)
-    {
+    function getChainOfCustody() external view returns (CustodyRecord[] memory) {
         return chainOfCustody;
     }
 

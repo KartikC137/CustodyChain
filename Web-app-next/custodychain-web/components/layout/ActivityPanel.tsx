@@ -58,11 +58,11 @@ export default function ActivityPanel() {
   }, [account, allAccounts]);
 
   return (
-    <div className="h-full rounded-md bg-orange-50 border-2 border-orange-700 flex flex-col">
-      <p className="pl-5 pt-3 font-sans font-[500] text-2xl text-orange-700 flex-shrink-0">
+    <div className="rounded-md bg-orange-50 border-2 border-orange-700">
+      <p className="pl-5 pt-3 font-sans font-[500] text-2xl text-orange-700">
         Activity:
       </p>
-      <div className="flex-grow overflow-y-auto p-5 space-y-2">
+      <div className="h-160 p-5 space-y-2 overflow-y-scroll">
         {!account ? (
           <p className="text-center text-sm text-gray-500 p-4">
             Connect your wallet to see activity.
