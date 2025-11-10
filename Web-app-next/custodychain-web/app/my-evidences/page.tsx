@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useWeb3 } from "@/lib/contexts/web3/Web3Context";
+import { useEffect, useState } from "react";
 import {
-  useMockDb,
-  type Evidence,
   type AccountProfile,
+  type Evidence,
+  useMockDb,
 } from "@/lib/contexts/MockDBContext";
+import { useWeb3 } from "@/lib/contexts/web3/Web3Context";
 
 export default function MyEvidencePage() {
   const { account, isLoading: isWeb3Loading } = useWeb3();
@@ -19,14 +19,14 @@ export default function MyEvidencePage() {
   useEffect(() => {
     if (account && !isWeb3Loading) {
       const profile: AccountProfile | undefined = allAccounts.find(
-        (p) => p.address.toLowerCase() === account.toLowerCase()
+        (p) => p.address.toLowerCase() === account.toLowerCase(),
       );
 
       if (profile) {
         setCreatedEvidence(profile.evidencesCreated);
         const ownedByOthers = profile.evidencesOwned.filter(
           (ownedItem) =>
-            ownedItem.creator.toLowerCase() !== account.toLowerCase()
+            ownedItem.creator.toLowerCase() !== account.toLowerCase(),
         );
         setOwnedEvidence(ownedByOthers);
       } else {

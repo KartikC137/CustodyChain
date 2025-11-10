@@ -1,22 +1,22 @@
 "use client";
 
-import { useWeb3 } from "@/lib/contexts/web3/Web3Context";
+import { useState } from "react";
 import {
-  keccak256,
-  toHex,
-  encodeAbiParameters,
-  parseAbiParameters,
   type Address,
   ContractFunctionRevertedError,
   decodeEventLog,
+  encodeAbiParameters,
+  keccak256,
+  parseAbiParameters,
+  toHex,
 } from "viem";
-import { useMockDb, type Evidence } from "@/lib/contexts/MockDBContext";
-import { useActivityManager } from "@/lib/contexts/ActivityManagerContext";
-import { evidenceLedgerAbi } from "@/lib/constants/abi/evidence-ledger-abi";
-import { evidenceLedgerAddress } from "@/lib/constants/evidence-ledger-address";
 import Button from "@/components/Button";
 import Input from "@/components/Input";
-import { useState } from "react";
+import { evidenceLedgerAbi } from "@/lib/constants/abi/evidence-ledger-abi";
+import { evidenceLedgerAddress } from "@/lib/constants/evidence-ledger-address";
+import { useActivityManager } from "@/lib/contexts/ActivityManagerContext";
+import { type Evidence, useMockDb } from "@/lib/contexts/MockDBContext";
+import { useWeb3 } from "@/lib/contexts/web3/Web3Context";
 
 export default function CreateEvidenceForm() {
   const { account, chain, walletClient, publicClient } = useWeb3();
@@ -55,7 +55,7 @@ export default function CreateEvidenceForm() {
       const currentTime = Date.now();
       const encodedData = encodeAbiParameters(
         parseAbiParameters("string, address, uint256"),
-        [description, evidenceLedgerAddress, BigInt(currentTime)]
+        [description, evidenceLedgerAddress, BigInt(currentTime)],
       );
       const evidenceId: `0x${string}` = keccak256(encodedData);
       const hash = await walletClient.writeContract({
@@ -118,7 +118,7 @@ export default function CreateEvidenceForm() {
         } catch (err) {
           console.error(
             "MockDBProvider: Couldnt dispatch create evidence: ",
-            err
+            err,
           );
         }
 
@@ -134,18 +134,18 @@ export default function CreateEvidenceForm() {
           });
 
           console.log(
-            "ActivityManagerProvider: Dispatched 'create' action to Mock DB."
+            "ActivityManagerProvider: Dispatched 'create' action to Mock DB.",
           );
         } catch (err) {
           console.error(
             "ActivityManagerProvider: Couldnt dispatch create evidence: ",
-            err
+            err,
           );
         }
 
         if (emittedCreator.toLowerCase() !== account.toLowerCase()) {
           setWarning(
-            "Evidence Creator from contract event does not match your account"
+            "Evidence Creator from contract event does not match your account",
           );
         }
         if (emittedId.toLowerCase() !== evidenceId.toLowerCase()) {
@@ -159,7 +159,7 @@ export default function CreateEvidenceForm() {
         }
       } else {
         setWarning(
-          "Evidence Created, but the CreateEvidence event from contract was not found"
+          "Evidence Created, but the CreateEvidence event from contract was not found",
         );
       }
     } catch (err) {

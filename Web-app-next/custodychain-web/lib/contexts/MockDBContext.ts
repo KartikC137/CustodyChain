@@ -1,7 +1,7 @@
 "use client";
 
-import { createContext, useContext, type Dispatch } from "react";
-import { type Address } from "viem";
+import { createContext, type Dispatch, useContext } from "react";
+import type { Address } from "viem";
 
 export type callType = "read" | "create" | "discontinue" | "transfer";
 export type accountType = "owner" | "creator";
@@ -35,7 +35,7 @@ export interface MockDbContextType {
 }
 
 export const MockDbContext = createContext<MockDbContextType | undefined>(
-  undefined
+  undefined,
 );
 
 export function useMockDb() {

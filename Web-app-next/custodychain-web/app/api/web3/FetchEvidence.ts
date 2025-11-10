@@ -1,13 +1,11 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { useWeb3 } from "@/lib/contexts/web3/Web3Context";
+import { useCallback, useEffect, useState } from "react";
 import { type Address, isAddressEqual } from "viem";
-
+import { evidenceAbi } from "@/lib/constants/abi/chain-of-custody-abi";
 import { evidenceLedgerAbi } from "@/lib/constants/abi/evidence-ledger-abi";
 import { evidenceLedgerAddress } from "@/lib/constants/evidence-ledger-address";
-
-import { evidenceAbi } from "@/lib/constants/abi/chain-of-custody-abi";
+import { useWeb3 } from "@/lib/contexts/web3/Web3Context";
 
 export interface CustodyRecord {
   owner: Address;
@@ -62,7 +60,7 @@ export default function fetchEvidence(evidenceId: `0x${string}`) {
         if (
           isAddressEqual(
             contractAddress,
-            "0x0000000000000000000000000000000000000000"
+            "0x0000000000000000000000000000000000000000",
           )
         ) {
           setError(`Evidence with this ID: ${idToFetch} not found.`);
@@ -136,13 +134,13 @@ export default function fetchEvidence(evidenceId: `0x${string}`) {
       } catch (err) {
         console.error("Failed to fetch evidence details:", err);
         setError(
-          err instanceof Error ? err.message : "An unknown error occurred."
+          err instanceof Error ? err.message : "An unknown error occurred.",
         );
       } finally {
         setIsLoading(false);
       }
     },
-    [publicClient]
+    [publicClient],
   );
 
   useEffect(() => {

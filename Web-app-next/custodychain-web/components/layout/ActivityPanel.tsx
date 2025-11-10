@@ -1,12 +1,13 @@
 "use client";
 
-import { useWeb3 } from "@/lib/contexts/web3/Web3Context";
-import {
-  useActivityManager,
-  type Activity,
-} from "@/lib/contexts/ActivityManagerContext";
-import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useEffect, useState } from "react";
+
+import {
+  type Activity,
+  useActivityManager,
+} from "@/lib/contexts/ActivityManagerContext";
+import { useWeb3 } from "@/lib/contexts/web3/Web3Context";
 
 function formatActivityType(type: string): string {
   switch (type) {
@@ -45,7 +46,7 @@ export default function ActivityPanel() {
   useEffect(() => {
     if (account && allAccounts) {
       const profile = allAccounts.find(
-        (p) => p.address.toLowerCase() === account.toLowerCase()
+        (p) => p.address.toLowerCase() === account.toLowerCase(),
       );
       if (profile) {
         setUserActivities(profile.activities.slice(0, 20)); // 20 most recent activities
@@ -72,41 +73,47 @@ export default function ActivityPanel() {
             No recent activity recorded.
           </p>
         ) : (
-          userActivities.map((activity, index) => (
-            <div
-              key={index}
-              className="text-md font-mono border-b border-orange-400 pb-2"
-            >
-              <div className="flex justify-between items-center">
-                <span
-                  className={`font-semibold ${
-                    activity.activityType === "discontinue"
-                      ? "text-red-800"
-                      : activity.activityType === "transfer"
-                      ? "text-yellow-700"
-                      : "text-green-800"
-                  }`}
-                >
-                  {formatActivityType(activity.activityType)}
-                </span>
-                <span className="text-xs text-orange-700">
-                  {activity.time.toLocaleString()}
-                </span>
-              </div>
-              <Link
-                href={`/evidence/${activity.evidenceId}`}
-                className="block text-blue-600 hover:underline truncate text-xs"
+          userActivities.map((activity: Activity) => {
+            const key = `${activity.evidenceId}-${activity.activityType}-${
+              activity.transferredTo ?? "null"
+            }-${activity.time}`;
+
+            return (
+              <div
+                key={key}
+                className="text-md font-mono border-b border-orange-400 pb-2"
               >
-                ID: {activity.evidenceId.slice(0, 12)}...
-              </Link>
-              {activity.activityType === "transfer" &&
-                activity.transferredTo && (
-                  <p className="text-xs text-gray-700 truncate">
-                    To: {activity.transferredTo}
-                  </p>
-                )}
-            </div>
-          ))
+                <div className="flex justify-between items-center">
+                  <span
+                    className={`font-semibold ${
+                      activity.activityType === "discontinue"
+                        ? "text-red-800"
+                        : activity.activityType === "transfer"
+                          ? "text-yellow-700"
+                          : "text-green-800"
+                    }`}
+                  >
+                    {formatActivityType(activity.activityType)}
+                  </span>
+                  <span className="text-xs text-orange-700">
+                    {activity.time.toLocaleString()}
+                  </span>
+                </div>
+                <Link
+                  href={`/evidence/${activity.evidenceId}`}
+                  className="block text-blue-600 hover:underline truncate text-xs"
+                >
+                  ID: {activity.evidenceId.slice(0, 12)}...
+                </Link>
+                {activity.activityType === "transfer" &&
+                  activity.transferredTo && (
+                    <p className="text-xs text-gray-700 truncate">
+                      To: {activity.transferredTo}
+                    </p>
+                  )}
+              </div>
+            );
+          })
         )}
       </div>
     </div>

@@ -1,13 +1,13 @@
+import "./globals.css";
 import type { Metadata } from "next";
 import { Montserrat } from "next/font/google";
-import "./globals.css";
 import Link from "next/link";
-import Web3Provider from "@/components/web3/Web3Provider";
 import { MockDbProvider } from "@/components/db/MockDBProvider";
-import { ActivityManagerProvider } from "@/components/logs/ActivityManagerProvider";
-import Navbar from "@/components/layout/Navbar";
 import ActivityPanel from "@/components/layout/ActivityPanel";
+import Navbar from "@/components/layout/Navbar";
+import { ActivityManagerProvider } from "@/components/logs/ActivityManagerProvider";
 import ConnectWalletButton from "@/components/web3/ConnectWalletButton";
+import Web3Provider from "@/components/web3/Web3Provider";
 
 const monsterrat = Montserrat({
   variable: "--font-monsteratt",

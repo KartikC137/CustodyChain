@@ -1,12 +1,7 @@
 "use client";
 
 import { createContext, useContext } from "react";
-import {
-  type Address,
-  type PublicClient,
-  type WalletClient,
-  type Chain,
-} from "viem";
+import type { Address, Chain, PublicClient, WalletClient } from "viem";
 
 export interface Web3ContextType {
   isLoading: boolean;

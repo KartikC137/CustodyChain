@@ -1,22 +1,22 @@
 "use client";
 
-import { useState, useEffect, useCallback, type ReactNode } from "react";
+import { type ReactNode, useCallback, useEffect, useState } from "react";
+import {
+  type Address,
+  type Chain,
+  createPublicClient,
+  createWalletClient,
+  custom,
+  type EIP1193Provider,
+  http,
+  type PublicClient,
+  type WalletClient,
+} from "viem";
+import { anvil, sepolia } from "viem/chains";
 import {
   Web3Context,
   type Web3ContextType,
 } from "../../lib/contexts/web3/Web3Context";
-import {
-  createWalletClient,
-  createPublicClient,
-  custom,
-  http,
-  type Address,
-  type PublicClient,
-  type WalletClient,
-  type EIP1193Provider,
-  type Chain,
-} from "viem";
-import { anvil, sepolia } from "viem/chains";
 
 declare global {
   interface Window {
@@ -40,53 +40,69 @@ export default function Web3Provider({ children }: Web3ProviderProps) {
   const [walletClient, setWalletClient] = useState<WalletClient | null>(null);
   const [publicClient, setPublicClient] = useState<PublicClient | null>(null);
 
-  const initializeProvider = useCallback(async (connectedAccount: Address) => {
-    try {
-      const tempWalletClient = createWalletClient({
-        transport: custom(window.ethereum!),
-      });
-      const chainId = await tempWalletClient.getChainId();
-      const currentChain = supportedChains[chainId];
-
-      if (!currentChain) {
-        alert(
-          "Unsupported network: " +
-            chainId +
-            " . Please switch to a supported network."
-        );
-        return;
-      }
-
-      const finalWalletClient = createWalletClient({
-        account: connectedAccount,
-        chain: currentChain,
-        transport: custom(window.ethereum!),
-      });
-      const finalPublicClient = createPublicClient({
-        chain: currentChain,
-        transport: http(),
-      });
-
-      setAccount(connectedAccount);
-      setChain(currentChain);
-      setWalletClient(finalWalletClient);
-      setPublicClient(finalPublicClient);
-
-      console.log(
-        `Provider initialized on ${currentChain.name} for ${connectedAccount}`
-      );
-    } catch (error) {
-      console.error("Failed to initialize provider:", error);
-    }
+  const getProvider = useCallback((): EIP1193Provider | undefined => {
+    return typeof window !== "undefined" ? window.ethereum : undefined;
   }, []);
 
+  const initializeProvider = useCallback(
+    async (connectedAccount: Address) => {
+      try {
+        const provider = getProvider();
+        if (!provider) {
+          console.error(
+            "No Ethereum provider available (MetaMask not installed).",
+          );
+          return;
+        }
+
+        const tempWalletClient = createWalletClient({
+          transport: custom(provider),
+        });
+        const chainId = await tempWalletClient.getChainId();
+        const currentChain = supportedChains[chainId];
+
+        if (!currentChain) {
+          alert(
+            "Unsupported network: " +
+              chainId +
+              " . Please switch to a supported network.",
+          );
+          return;
+        }
+
+        const finalWalletClient = createWalletClient({
+          account: connectedAccount,
+          chain: currentChain,
+          transport: custom(provider),
+        });
+        const finalPublicClient = createPublicClient({
+          chain: currentChain,
+          transport: http(),
+        });
+
+        setAccount(connectedAccount);
+        setChain(currentChain);
+        setWalletClient(finalWalletClient);
+        setPublicClient(finalPublicClient);
+
+        console.log(
+          `Provider initialized on ${currentChain.name} for ${connectedAccount}`,
+        );
+      } catch (error) {
+        console.error("Failed to initialize provider:", error);
+      }
+    },
+    [getProvider],
+  );
+
   const connectWallet = useCallback(async () => {
-    if (!window.ethereum) {
+    const provider = getProvider();
+    if (!provider) {
       alert("Please install MetaMask!");
       return;
     }
     try {
-      const accounts = (await window.ethereum.request({
+      const accounts = (await provider.request({
         method: "eth_requestAccounts",
       })) as Address[];
       if (accounts.length > 0) {
@@ -95,7 +111,7 @@ export default function Web3Provider({ children }: Web3ProviderProps) {
     } catch (error) {
       console.error("Failed to connect wallet:", error);
     }
-  }, [initializeProvider]);
+  }, [initializeProvider, getProvider]);
 
   useEffect(() => {
     const checkExistingConnection = async () => {
@@ -123,18 +139,25 @@ export default function Web3Provider({ children }: Web3ProviderProps) {
         setAccount(null);
         setChain(undefined);
         setWalletClient(null);
+        setPublicClient(null);
       }
     };
     const handleChainChanged = () => window.location.reload();
 
-    window.ethereum?.on("accountsChanged", handleAccountsChanged);
-    window.ethereum?.on("chainChanged", handleChainChanged);
+    const provider = getProvider();
+    if (provider?.on) {
+      provider.on("accountsChanged", handleAccountsChanged);
+      provider.on("chainChanged", handleChainChanged);
+    }
 
     return () => {
-      window.ethereum?.removeListener("accountsChanged", handleAccountsChanged);
-      window.ethereum?.removeListener("chainChanged", handleChainChanged);
+      const p = getProvider();
+      if (p?.removeListener) {
+        p.removeListener("accountsChanged", handleAccountsChanged);
+        p.removeListener("chainChanged", handleChainChanged);
+      }
     };
-  }, [initializeProvider]);
+  }, [initializeProvider, getProvider]);
 
   const contextValue: Web3ContextType = {
     isLoading,

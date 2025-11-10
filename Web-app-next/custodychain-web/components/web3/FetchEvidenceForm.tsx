@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import Button from "@/components/Button";
 import Input from "@/components/Input";
 
@@ -16,7 +16,7 @@ export default function FetchEvidenceForm() {
 
     if (!evidenceIdInput.startsWith("0x") || evidenceIdInput.length !== 66) {
       setInputError(
-        "Invalid Evidence ID format. Must be a 0x-prefixed 66-character hex string."
+        "Invalid Evidence ID format. Must be a 0x-prefixed 66-character hex string.",
       );
       return;
     }

@@ -1,24 +1,30 @@
 "use client";
 
-import { useReducer, type ReactNode, useEffect } from "react";
-import { type Address } from "viem";
+import { type ReactNode, useEffect, useReducer } from "react";
+import type { Address } from "viem";
 import {
-  ActivityManagerContext,
   type AccountProfile,
   type Activity,
   type ActivityManagerAction,
+  ActivityManagerContext,
 } from "@/lib/contexts/ActivityManagerContext";
+
+function toDate(value: Date | string | number): Date {
+  if (value instanceof Date) return value;
+  if (typeof value === "number") return new Date(value);
+  return new Date(value);
+}
 
 function findOrCreateAccountProfile(
   state: AccountProfile[],
-  accountAddress: Address
+  accountAddress: Address,
 ): { updatedState: AccountProfile[]; profile: AccountProfile } {
   const targetAddress = accountAddress.toLowerCase();
   let profile = state.find((p) => p.address.toLowerCase() === targetAddress);
 
   if (!profile) {
     console.log(
-      `ActivityManager: Creating new Account Profile for ${accountAddress}...`
+      `ActivityManager: Creating new Account Profile for ${accountAddress}...`,
     );
     profile = {
       address: accountAddress,
@@ -31,19 +37,20 @@ function findOrCreateAccountProfile(
 
 function activityManagerReducer(
   state: AccountProfile[],
-  action: ActivityManagerAction
+  action: ActivityManagerAction,
 ): AccountProfile[] {
   const { address, activityType, evidenceId, transferredTo, time } = action;
 
   const { updatedState: stateAfterFind, profile: accountProfile } =
     findOrCreateAccountProfile(state, address);
 
-  let nextState = stateAfterFind;
+  const nextState = stateAfterFind;
+  const normalizedTime = toDate(time);
   const newActivity: Activity = {
     evidenceId: evidenceId,
     activityType: activityType,
     transferredTo: transferredTo,
-    time: time,
+    time: normalizedTime,
   };
 
   return nextState.map((profile) =>
@@ -52,7 +59,7 @@ function activityManagerReducer(
           ...profile,
           activities: [newActivity, ...profile.activities],
         }
-      : profile
+      : profile,
   );
 }
 
@@ -69,22 +76,52 @@ export function ActivityManagerProvider({ children }: { children: ReactNode }) {
       try {
         const savedState = window.localStorage.getItem(LOCAL_STORAGE_KEY);
         const parsed = savedState ? JSON.parse(savedState) : initial;
-        return Array.isArray(parsed) ? parsed : initial;
+        if (!Array.isArray(parsed)) return initial;
+
+        const normalized = parsed.map((profile: AccountProfile) => {
+          const activities = Array.isArray(profile.activities)
+            ? profile.activities.map((act: Activity) => {
+                const t = act.time;
+                return {
+                  ...act,
+                  time: toDate(t),
+                };
+              })
+            : [];
+          return {
+            ...profile,
+            activities,
+          };
+        });
+
+        return normalized as AccountProfile[];
       } catch (error) {
         console.error(
           "ActivityManagerProvider: Failed to load Activity from localStorage:",
-          error
+          error,
         );
         return initial;
       }
-    }
+    },
   );
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
+    try {
+      const serializable = allAccounts.map((profile) => ({
+        ...profile,
+        activities: profile.activities.map((act: Activity) => ({
+          ...act,
+          time: act.time instanceof Date ? act.time.toISOString() : act.time,
+        })),
+      }));
       window.localStorage.setItem(
         LOCAL_STORAGE_KEY,
-        JSON.stringify(allAccounts)
+        JSON.stringify(serializable),
+      );
+    } catch (err) {
+      console.error(
+        "ActivityManagerProvider: Failed to save activity logs:",
+        err,
       );
     }
   }, [allAccounts]);

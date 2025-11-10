@@ -1,17 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { useWeb3 } from "@/lib/contexts/web3/Web3Context";
-import { useMockDb, type Evidence } from "@/lib/contexts/MockDBContext";
-import { useActivityManager } from "@/lib/contexts/ActivityManagerContext";
-import { evidenceAbi } from "@/lib/constants/abi/chain-of-custody-abi";
 import {
   type Address,
-  isAddress,
   ContractFunctionRevertedError,
   decodeEventLog,
+  isAddress,
 } from "viem";
 import Button from "@/components/Button";
+import { evidenceAbi } from "@/lib/constants/abi/chain-of-custody-abi";
+import { useActivityManager } from "@/lib/contexts/ActivityManagerContext";
+import { type Evidence, useMockDb } from "@/lib/contexts/MockDBContext";
+import { useWeb3 } from "@/lib/contexts/web3/Web3Context";
 
 interface DiscontinueEvidenceProps {
   evidenceContractAddress: Address;
@@ -59,7 +59,7 @@ export default function DiscontinueEvidence({
     if (
       !creator ||
       !isAddress(creator) ||
-      account.toLowerCase() != creator.toLowerCase()
+      account.toLowerCase() !== creator.toLowerCase()
     ) {
       errorMessage = "Only Creator Can Discontinue Evidence";
       onDiscontinueEvidenceComplete({ error: errorMessage });
@@ -92,7 +92,7 @@ export default function DiscontinueEvidence({
         const { evidenceId: emittedId } = eventLog.args as unknown as {
           evidenceId: `0x${string}`;
         };
-        if (emittedId != evidenceId) {
+        if (emittedId !== evidenceId) {
           warningMessage = "Evidence ID from Contract Event does not Match";
         }
       } else {
@@ -118,12 +118,12 @@ export default function DiscontinueEvidence({
           evidence: evidenceToDiscontinue,
         });
         console.log(
-          "MockDBProvider: Dispatched 'discontinue' action to Mock DB."
+          "MockDBProvider: Dispatched 'discontinue' action to Mock DB.",
         );
       } catch (err) {
         console.error(
           "MockDBProvider: Couldnt dispatch discontinue evidence: ",
-          err
+          err,
         );
       }
 
@@ -139,12 +139,12 @@ export default function DiscontinueEvidence({
         });
 
         console.log(
-          "ActivityManagerProvider: Dispatched 'discontinue' action to Mock DB."
+          "ActivityManagerProvider: Dispatched 'discontinue' action to Mock DB.",
         );
       } catch (err) {
         console.error(
           "ActivityManagerProvider: Couldnt dispatch disconitinue evidence: ",
-          err
+          err,
         );
       }
 

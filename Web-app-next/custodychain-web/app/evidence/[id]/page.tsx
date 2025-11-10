@@ -1,18 +1,16 @@
 "use client";
 
-import { useState } from "react";
 import { useParams } from "next/navigation";
-import { useWeb3 } from "@/lib/contexts/web3/Web3Context";
-import { type Address } from "viem";
-import fetchEvidence, {
-  type EvidenceDetails,
-} from "@/app/api/web3/FetchEvidence";
-import TransferOwnershipForm, {
-  type TransferResult,
-} from "@/components/web3/TransferOwnership";
+import { useState } from "react";
+import type { Address } from "viem";
+import fetchEvidence from "@/app/api/web3/FetchEvidence";
 import DiscontinueEvidence, {
   type DiscontinueEvidenceResult,
 } from "@/components/web3/DiscontinueEvidence";
+import TransferOwnershipForm, {
+  type TransferResult,
+} from "@/components/web3/TransferOwnership";
+import { useWeb3 } from "@/lib/contexts/web3/Web3Context";
 
 const formatTimestamp = (rawTimeStamp: bigint) => {
   if (rawTimeStamp === 0n) return "N/A";
@@ -21,8 +19,18 @@ const formatTimestamp = (rawTimeStamp: bigint) => {
 };
 
 export default function EvidencePage() {
+  const { account } = useWeb3();
   const params = useParams();
   const evidenceIdFromUrl = params.id as `0x${string}`;
+
+  const { isLoading, error, evidenceDetails, fetchEvidenceData } =
+    fetchEvidence(evidenceIdFromUrl as `0x${string}`);
+
+  const [activeTab, setActiveTab] = useState<"list" | "timeline">("timeline");
+  const [transferResult, setTransferResult] = useState<TransferResult>();
+  const [discontinueResult, setDiscontinueResult] =
+    useState<DiscontinueEvidenceResult>();
+
   const isValidIdFormat =
     evidenceIdFromUrl?.startsWith("0x") && evidenceIdFromUrl.length === 66;
 
@@ -33,15 +41,6 @@ export default function EvidencePage() {
       </div>
     );
   }
-
-  const { account } = useWeb3();
-
-  const { isLoading, error, evidenceDetails, fetchEvidenceData } =
-    fetchEvidence(evidenceIdFromUrl as `0x${string}`);
-  const [activeTab, setActiveTab] = useState<"list" | "timeline">("timeline");
-  const [transferResult, setTransferResult] = useState<TransferResult>();
-  const [discontinueResult, setDiscontinueResult] =
-    useState<DiscontinueEvidenceResult>();
 
   if (isLoading) {
     return (
@@ -77,12 +76,14 @@ export default function EvidencePage() {
     if (!result.error) {
       fetchEvidenceData(evidenceIdFromUrl);
     }
+    console.log("Transfer Result:", transferResult);
   }
 
   function handleEvidenceDiscontinued(result: DiscontinueEvidenceResult) {
     setDiscontinueResult(result);
     if (!result.error) {
       fetchEvidenceData(evidenceIdFromUrl);
+      console.log("Discontinue Result:", discontinueResult);
     }
   }
 
@@ -127,7 +128,7 @@ export default function EvidencePage() {
               {formatTimestamp(
                 evidenceDetails.chainOfCustody[
                   evidenceDetails.chainOfCustody.length - 1
-                ].timestamp
+                ].timestamp,
               )}
             </span>
           </p>
@@ -138,8 +139,8 @@ export default function EvidencePage() {
         className={`grid gap-8
           ${
             evidenceDetails.isActive &&
-            (evidenceDetails.creator.toLowerCase() == account ||
-              evidenceDetails.currentOwner.toLowerCase() == account)
+            (evidenceDetails.creator.toLowerCase() === account ||
+              evidenceDetails.currentOwner.toLowerCase() === account)
               ? "grid-cols-[1.3fr_1fr]"
               : "h-140"
           }`}
@@ -157,6 +158,7 @@ export default function EvidencePage() {
           >
             <button
               onClick={() => setActiveTab("list")}
+              type="button"
               className={`py-2 px-3 ${
                 activeTab === "list"
                   ? "bg-orange-500 font-[600] text-white"
@@ -167,6 +169,7 @@ export default function EvidencePage() {
             </button>
             <button
               onClick={() => setActiveTab("timeline")}
+              type="button"
               className={`py-2 px-3 ${
                 activeTab === "timeline"
                   ? "bg-orange-500 font-[600] text-white"
@@ -181,10 +184,10 @@ export default function EvidencePage() {
             {/* View Select Tabs*/}
             {activeTab === "list" ? (
               <ul className="space-y-1 list-decimal list-inside">
-                {evidenceDetails.chainOfCustody.map((record, index) => {
+                {evidenceDetails.chainOfCustody.map((record) => {
                   return (
                     <li
-                      key={index}
+                      key={`${record.owner}-${record.timestamp}`}
                       className="font-mono font-semibold text-md text-green-800"
                     >
                       <span className="text-orange-700">{record.owner}</span>{" "}
@@ -200,25 +203,26 @@ export default function EvidencePage() {
                 {evidenceDetails.chainOfCustody.map((record, index) => {
                   const isLastItem =
                     index === evidenceDetails.chainOfCustody.length - 1;
+                  const key = `${record.owner}-${record.timestamp}`;
                   return (
-                    <div key={index} className="flex flex-col items-center">
+                    <div key={key} className="flex flex-col items-center">
                       <div className="relative p-2 font-mono font-semibold rounded-sm border-2 border-orange-700 bg-orange-50 shadow-sm">
                         <h3 className="text-green-800">
                           {evidenceDetails.isActive
                             ? index === 0 && isLastItem
                               ? "Creator / Current Owner"
                               : index === 0
-                              ? "Creator"
-                              : isLastItem
-                              ? "Current Owner"
-                              : "Owned"
+                                ? "Creator"
+                                : isLastItem
+                                  ? "Current Owner"
+                                  : "Owned"
                             : index === 0 && isLastItem
-                            ? "Creator / Last Owner"
-                            : index === 0
-                            ? "Creator"
-                            : isLastItem
-                            ? "Last Owner"
-                            : "Owned"}
+                              ? "Creator / Last Owner"
+                              : index === 0
+                                ? "Creator"
+                                : isLastItem
+                                  ? "Last Owner"
+                                  : "Owned"}
                         </h3>
                         <div className="absolute top-1 right-1 flex items-center justify-center w-6 h-6 border-2 border-green-700 rounded-tr-md font-mono text-sm text-green-800">
                           {index + 1}
@@ -236,6 +240,8 @@ export default function EvidencePage() {
                           viewBox="0 0 20 20"
                           fill="currentColor"
                           className="w-5 h-5 my-1 text-orange-800"
+                          aria-hidden="true"
+                          focusable="false"
                         >
                           <path
                             fillRule="evenodd"

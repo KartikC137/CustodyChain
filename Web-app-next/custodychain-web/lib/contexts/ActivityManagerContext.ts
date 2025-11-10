@@ -1,7 +1,7 @@
 "use client";
 
-import { createContext, useContext, type Dispatch } from "react";
-import { Address } from "viem";
+import { createContext, type Dispatch, useContext } from "react";
+import type { Address } from "viem";
 
 export type activityType = "fetch" | "create" | "transfer" | "discontinue";
 
@@ -38,7 +38,7 @@ export function useActivityManager() {
   const context = useContext(ActivityManagerContext);
   if (context === undefined) {
     throw new Error(
-      "useActivityManager must be used within a ActivityManagerProvider"
+      "useActivityManager must be used within a ActivityManagerProvider",
     );
   }
   return context;

@@ -1,18 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { useWeb3 } from "@/lib/contexts/web3/Web3Context";
-import { useMockDb, type Evidence } from "@/lib/contexts/MockDBContext";
-import { useActivityManager } from "@/lib/contexts/ActivityManagerContext";
 import {
   type Address,
-  isAddress,
   ContractFunctionRevertedError,
   decodeEventLog,
+  isAddress,
 } from "viem";
-import { evidenceAbi } from "@/lib/constants/abi/chain-of-custody-abi";
 import Button from "@/components/Button";
 import Input from "@/components/Input";
+import { evidenceAbi } from "@/lib/constants/abi/chain-of-custody-abi";
+import { useActivityManager } from "@/lib/contexts/ActivityManagerContext";
+import { type Evidence, useMockDb } from "@/lib/contexts/MockDBContext";
+import { useWeb3 } from "@/lib/contexts/web3/Web3Context";
 
 interface TransferOwnershipFormProps {
   evidenceContractAddress: Address;
@@ -71,13 +71,13 @@ export default function TransferOwnershipForm({
     if (
       !currentOwner ||
       !isAddress(currentOwner) ||
-      account.toLowerCase() != currentOwner.toLowerCase()
+      account.toLowerCase() !== currentOwner.toLowerCase()
     ) {
       setError("Only Current Owner Can Transfer Ownership");
       return;
     }
 
-    if (account.toLowerCase() == nextOwner.toLowerCase()) {
+    if (account.toLowerCase() === nextOwner.toLowerCase()) {
       setError("You are the Current Owner");
       return;
     }
@@ -90,7 +90,7 @@ export default function TransferOwnershipForm({
         "Transferring from:  ",
         account,
         "\nTo New Owner : ",
-        nextOwner
+        nextOwner,
       );
       const hash = await walletClient.writeContract({
         address: evidenceContractAddress,
@@ -149,14 +149,14 @@ export default function TransferOwnershipForm({
             accountTo: nextOwner,
           });
           console.log(
-            "MockDBProvider: Dispatched 'transfer' action to Mock DB."
+            "MockDBProvider: Dispatched 'transfer' action to Mock DB.",
           );
         } catch (err) {
           warningMessage =
             "MockDBProvider: Couldnt dispatch transfer evidence. See console for details";
           console.error(
             "MockDBProvider: Couldnt dispatch transfer evidence",
-            err
+            err,
           );
         }
 
@@ -172,14 +172,15 @@ export default function TransferOwnershipForm({
           });
 
           console.log(
-            "ActivityManagerProvider: Dispatched 'transfer' action to Mock DB."
+            "ActivityManagerProvider: Dispatched 'transfer' action to Mock DB.",
+            txHash,
           );
         } catch (err) {
           warningMessage =
             "ActivityManagerProvider: Couldnt dispatch transfer evidence. See console for details";
           console.error(
             "ActivityManagerProvider: Couldnt dispatch transfer evidence: ",
-            err
+            err,
           );
         }
       } else {

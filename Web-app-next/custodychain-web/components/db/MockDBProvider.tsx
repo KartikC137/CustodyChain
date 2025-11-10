@@ -1,26 +1,26 @@
 "use client";
 
-import { useReducer, type ReactNode, useEffect } from "react";
-import { type Address } from "viem";
+import { type ReactNode, useEffect, useReducer } from "react";
+import type { Address } from "viem";
 import {
-  MockDbContext,
   type AccountProfile,
+  type accountType,
   type Evidence,
   type MockDbAction,
-  type accountType,
+  MockDbContext,
 } from "@/lib/contexts/MockDBContext";
 
 function findOrCreateAccountProfile(
   state: AccountProfile[],
   accountAddress: Address,
-  type: accountType
+  type: accountType,
 ): { updatedState: AccountProfile[]; profile: AccountProfile } {
   const targetAddress = accountAddress.toLowerCase();
   let profile = state.find((p) => p.address.toLowerCase() === targetAddress);
 
   if (!profile) {
     console.log(
-      `MockDBContext: Creating new Account Profile for ${accountAddress}...`
+      `MockDBContext: Creating new Account Profile for ${accountAddress}...`,
     );
     profile = {
       address: accountAddress,
@@ -35,7 +35,7 @@ function findOrCreateAccountProfile(
 
 function mockDbReducer(
   state: AccountProfile[],
-  action: MockDbAction
+  action: MockDbAction,
 ): AccountProfile[] {
   const { account, accountTo, accountType, evidence, call } = action;
 
@@ -60,7 +60,7 @@ function mockDbReducer(
               evidencesCreated: [...profile.evidencesCreated, newEvidence],
               evidencesOwned: [...profile.evidencesOwned, newEvidence],
             }
-          : profile
+          : profile,
       );
     }
 
@@ -72,12 +72,12 @@ function mockDbReducer(
         evidencesCreated: profile.evidencesCreated.map((evidence) =>
           evidence.evidenceId.toLowerCase() === evidenceId
             ? { ...evidence, isActive: false }
-            : evidence
+            : evidence,
         ),
         evidencesOwned: profile.evidencesOwned.map((evidence) =>
           evidence.evidenceId.toLowerCase() === evidenceId
             ? { ...evidence, isActive: false }
-            : evidence
+            : evidence,
         ),
       }));
     }
@@ -88,7 +88,7 @@ function mockDbReducer(
       const { updatedState: stateAfterFindTo, profile: accountToProfile } =
         findOrCreateAccountProfile(nextState, accountTo, "owner");
 
-      let nextStateAfterFindTo = stateAfterFindTo;
+      const nextStateAfterFindTo = stateAfterFindTo;
       let evidenceToTransfer: Evidence | undefined;
 
       // Remove from accountProfile
@@ -99,7 +99,7 @@ function mockDbReducer(
           const index = profile.evidencesOwned.findIndex(
             (item) =>
               item.evidenceId.toLowerCase() ===
-              evidence.evidenceId.toLowerCase()
+              evidence.evidenceId.toLowerCase(),
           );
           if (index === -1) return profile;
           evidenceToTransfer = profile.evidencesOwned[index];
@@ -130,7 +130,7 @@ function mockDbReducer(
               profileTo.evidencesOwned.some(
                 (evidence) =>
                   evidence.evidenceId.toLowerCase() ===
-                  newOwnedEvidence.evidenceId.toLowerCase()
+                  newOwnedEvidence.evidenceId.toLowerCase(),
               )
             ) {
               return profileTo;
@@ -150,14 +150,13 @@ function mockDbReducer(
             evidence.evidenceId.toLowerCase() ===
             newOwnedEvidence.evidenceId.toLowerCase()
               ? { ...evidence, currentOwner: newOwnedEvidence.currentOwner }
-              : evidence
+              : evidence,
           ),
         }));
       }
       return nextState;
     }
 
-    case "read":
     default:
       return state;
   }
@@ -178,7 +177,7 @@ export function MockDbProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error(
         "MockDBProvider: Failed to load mock DB from localStorage:",
-        error
+        error,
       );
       return initial;
     }
@@ -188,7 +187,7 @@ export function MockDbProvider({ children }: { children: ReactNode }) {
     if (typeof window !== "undefined") {
       window.localStorage.setItem(
         LOCAL_STORAGE_KEY,
-        JSON.stringify(allAccounts)
+        JSON.stringify(allAccounts),
       );
     }
   }, [allAccounts]);
