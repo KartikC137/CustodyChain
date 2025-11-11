@@ -15,9 +15,7 @@ export default function FetchEvidenceForm() {
     setInputError(undefined);
 
     if (!evidenceIdInput.startsWith("0x") || evidenceIdInput.length !== 66) {
-      setInputError(
-        "Invalid Evidence ID format. Must be a 0x-prefixed 66-character hex string.",
-      );
+      setInputError("Must be a 0x-prefixed 66-character hex string.");
       return;
     }
 
@@ -25,26 +23,41 @@ export default function FetchEvidenceForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="grid gap-3">
-      <Input
-        id="evidenceIdInput"
-        type="text"
-        value={evidenceIdInput}
-        onChange={(e) => {
-          setEvidenceIdInput(e.target.value);
-          setInputError(undefined);
-        }}
-        placeholder="0x..."
-        error={inputError}
-        required
-      />
-      <Button
-        type="submit"
-        variant="primary"
-        loadingText="Fetching Evidence Details..."
-      >
-        Fetch Evidence Details
-      </Button>
-    </form>
+    <div
+      className={`p-10 w-200 rounded-md border-2 bg-green-50 ${!inputError ? "border-green-700" : "border-red-500"}`}
+    >
+      <p className="font-sans font-[400] text-5xl text-orange-700">
+        Enter Evidence ID
+      </p>
+      <form onSubmit={handleSubmit} className="grid gap-3">
+        <div className="h-5">
+          {inputError && (
+            <span className="ml-1 block text-xl text-red-700 leading-none">
+              {inputError}
+            </span>
+          )}
+        </div>
+        <Input
+          id="evidenceIdInput"
+          type="text"
+          value={evidenceIdInput}
+          onChange={(e) => {
+            setEvidenceIdInput(e.target.value);
+          }}
+          onClick={() => {
+            setInputError(undefined);
+          }}
+          placeholder="0x..."
+          required
+        />
+        <Button
+          type="submit"
+          variant="primary"
+          loadingText="Fetching Evidence Details..."
+        >
+          Fetch Evidence Details
+        </Button>
+      </form>
+    </div>
   );
 }

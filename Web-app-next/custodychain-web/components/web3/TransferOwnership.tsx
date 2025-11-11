@@ -90,7 +90,7 @@ export default function TransferOwnershipForm({
         "Transferring from:  ",
         account,
         "\nTo New Owner : ",
-        nextOwner,
+        nextOwner
       );
       const hash = await walletClient.writeContract({
         address: evidenceContractAddress,
@@ -149,14 +149,14 @@ export default function TransferOwnershipForm({
             accountTo: nextOwner,
           });
           console.log(
-            "MockDBProvider: Dispatched 'transfer' action to Mock DB.",
+            "MockDBProvider: Dispatched 'transfer' action to Mock DB."
           );
         } catch (err) {
           warningMessage =
             "MockDBProvider: Couldnt dispatch transfer evidence. See console for details";
           console.error(
             "MockDBProvider: Couldnt dispatch transfer evidence",
-            err,
+            err
           );
         }
 
@@ -173,14 +173,14 @@ export default function TransferOwnershipForm({
 
           console.log(
             "ActivityManagerProvider: Dispatched 'transfer' action to Mock DB.",
-            txHash,
+            txHash
           );
         } catch (err) {
           warningMessage =
             "ActivityManagerProvider: Couldnt dispatch transfer evidence. See console for details";
           console.error(
             "ActivityManagerProvider: Couldnt dispatch transfer evidence: ",
-            err,
+            err
           );
         }
       } else {
@@ -228,7 +228,6 @@ export default function TransferOwnershipForm({
         value={nextOwner as Address}
         onChange={(e) => setNextOwner(e.target.value as Address)}
         placeholder="0x..."
-        error={error}
         required
       />
       <Button

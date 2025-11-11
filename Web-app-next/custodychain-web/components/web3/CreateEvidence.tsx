@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import {
   type Address,
   ContractFunctionRevertedError,
@@ -55,7 +56,7 @@ export default function CreateEvidenceForm() {
       const currentTime = Date.now();
       const encodedData = encodeAbiParameters(
         parseAbiParameters("string, address, uint256"),
-        [description, evidenceLedgerAddress, BigInt(currentTime)],
+        [description, evidenceLedgerAddress, BigInt(currentTime)]
       );
       const evidenceId: `0x${string}` = keccak256(encodedData);
       const hash = await walletClient.writeContract({
@@ -118,7 +119,7 @@ export default function CreateEvidenceForm() {
         } catch (err) {
           console.error(
             "MockDBProvider: Couldnt dispatch create evidence: ",
-            err,
+            err
           );
         }
 
@@ -134,18 +135,18 @@ export default function CreateEvidenceForm() {
           });
 
           console.log(
-            "ActivityManagerProvider: Dispatched 'create' action to Mock DB.",
+            "ActivityManagerProvider: Dispatched 'create' action to Mock DB."
           );
         } catch (err) {
           console.error(
             "ActivityManagerProvider: Couldnt dispatch create evidence: ",
-            err,
+            err
           );
         }
 
         if (emittedCreator.toLowerCase() !== account.toLowerCase()) {
           setWarning(
-            "Evidence Creator from contract event does not match your account",
+            "Evidence Creator from contract event does not match your account"
           );
         }
         if (emittedId.toLowerCase() !== evidenceId.toLowerCase()) {
@@ -159,7 +160,7 @@ export default function CreateEvidenceForm() {
         }
       } else {
         setWarning(
-          "Evidence Created, but the CreateEvidence event from contract was not found",
+          "Evidence Created, but the CreateEvidence event from contract was not found"
         );
       }
     } catch (err) {
@@ -186,39 +187,43 @@ export default function CreateEvidenceForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="grid gap-3">
-      <Input
-        id="description"
-        type="text"
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-        placeholder="e.g., Case File #123 Report"
-        required
-      />
-      <Button
-        type="submit"
-        variant="primary"
-        isLoading={isLoading}
-        loadingText="Creating Evidence..."
-      >
-        Create Evidence
-      </Button>
+    <div
+      className={`p-10 w-200 rounded-md border-2 bg-green-50 ${!error ? "border-green-700" : "border-red-500"}`}
+    >
+      <p className="font-sans font-[400] text-5xl text-orange-700">
+        Enter Evidence Description
+      </p>
+      <form onSubmit={handleSubmit} className="grid gap-3">
+        <div className="h-5">
+          {error && (
+            <span className="ml-1 block text-xl text-red-700 leading-none">
+              {error}
+            </span>
+          )}
+        </div>
+        <Input
+          id="description"
+          type="text"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="e.g., Case File #123 Report"
+          required
+        />
+        <Button
+          type="submit"
+          variant="primary"
+          isLoading={isLoading}
+          loadingText="Creating Evidence..."
+        >
+          Create Evidence
+        </Button>
 
-      {transactionHash && (
-        <div className="p-2 text-sm text-green-700 bg-green-100 rounded">
-          Success! Evidence ID: {evidenceId}
-        </div>
-      )}
-      {error && (
-        <div className="p-2 text-sm text-red-700 bg-red-100 rounded">
-          Error: {error}
-        </div>
-      )}
-      {warning && (
-        <div className="p-2 text-sm text-orange-700 bg-orange-100 rounded">
-          Warning: {warning}, Please ensure it is correct.
-        </div>
-      )}
-    </form>
+        {warning && (
+          <div className="p-2 text-sm text-orange-700 bg-orange-100 rounded">
+            Warning: {warning}, Please ensure it is correct.
+          </div>
+        )}
+      </form>
+    </div>
   );
 }
