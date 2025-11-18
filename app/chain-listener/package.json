@@ -1,0 +1,26 @@
+{
+  "name": "chain-listener",
+  "version": "1.0.0",
+  "description": "Node server to listen to the chain and update DB.",
+  "license": "ISC",
+  "author": "Kartik",
+  "type": "module",
+  "main": "compiled/listener.js",
+  "scripts": {
+    "start": "node compiled/listener.js",
+    "dev": "ts-node listener.ts",
+    "build": "tsc",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "pg": "^8.16.3",
+    "viem": "^2.39.2"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "@types/pg": "^8.15.6",
+    "dotenv": "^17.2.3",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  }
+}

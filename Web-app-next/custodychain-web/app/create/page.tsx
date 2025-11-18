@@ -1,9 +1,0 @@
-import CreateEvidenceForm from "@/components/web3/CreateEvidence";
-
-export default function CreateEvidencePage() {
-  return (
-    <div className="p-10 bg-orange-50 rounded-md border-2 border-orange-700">
-      <CreateEvidenceForm />
-    </div>
-  );
-}
