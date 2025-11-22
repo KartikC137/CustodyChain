@@ -104,7 +104,7 @@ export const evidenceAbi = [
   },
   {
     type: "event",
-    name: "EvindenceDiscontinued",
+    name: "EvidenceDiscontinued",
     inputs: [
       {
         name: "evidenceId",

@@ -8,8 +8,8 @@ import {
 } from "viem";
 import Button from "@/components/Button";
 import Input from "@/components/Input";
-import { evidenceLedgerAbi } from "@/lib/constants/abi/evidence-ledger-abi";
-import { evidenceLedgerAddress } from "@/lib/constants/evidence-ledger-address";
+import { evidenceLedgerAbi } from "../../../lib/contractAbi/evidence-ledger-abi";
+import { evidenceLedgerAddress } from "@/lib/evidence-ledger-address";
 import { useWeb3 } from "@/lib/contexts/web3/Web3Context";
 
 export default function CreateEvidenceForm() {

@@ -44,7 +44,7 @@ contract Evidence {
     // Events  ///
     //////////////
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner, uint256 indexed timeOfTransfer);
-    event EvindenceDiscontinued(bytes32 indexed evidenceId);
+    event EvidenceDiscontinued(bytes32 indexed evidenceId);
 
     //////////////////
     // Modifiers   ///
@@ -109,7 +109,7 @@ contract Evidence {
 
     function discontinueEvidence() external onlyIfActive {
         _discontinueEvidence();
-        emit EvindenceDiscontinued(EVIDENCE_ID);
+        emit EvidenceDiscontinued(EVIDENCE_ID);
     }
 
     // Private & Internal Functions View function

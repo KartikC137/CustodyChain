@@ -5,10 +5,10 @@
   "license": "ISC",
   "author": "Kartik",
   "type": "module",
-  "main": "compiled/listener.js",
+  "main": "compiled/index.js",
   "scripts": {
-    "start": "node compiled/listener.js",
-    "dev": "ts-node listener.ts",
+    "start": "node compiled/index.js",
+    "dev": "ts-node src/index.js",
     "build": "tsc",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

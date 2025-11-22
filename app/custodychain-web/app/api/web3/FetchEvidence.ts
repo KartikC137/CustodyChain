@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useState, useRef } from "react";
 import { type Address, isAddressEqual } from "viem";
-import { evidenceAbi } from "@/lib/constants/abi/chain-of-custody-abi";
-import { evidenceLedgerAbi } from "@/lib/constants/abi/evidence-ledger-abi";
-import { evidenceLedgerAddress } from "@/lib/constants/evidence-ledger-address";
+import { evidenceAbi } from "../../../../lib/contractAbi/chain-of-custody-abi";
+import { evidenceLedgerAbi } from "../../../../lib/contractAbi/evidence-ledger-abi";
+import { evidenceLedgerAddress } from "@/lib/evidence-ledger-address";
 import { useWeb3 } from "@/lib/contexts/web3/Web3Context";
 
 export interface CustodyRecord {

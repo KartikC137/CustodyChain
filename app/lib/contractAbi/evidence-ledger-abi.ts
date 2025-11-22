@@ -1,4 +1,5 @@
 export const evidenceLedgerAbi = [
+  { type: "constructor", inputs: [], stateMutability: "nonpayable" },
   {
     type: "function",
     name: "createEvidence",
@@ -38,6 +39,12 @@ export const evidenceLedgerAbi = [
     name: "EvidenceCreated",
     inputs: [
       {
+        name: "contractAddress",
+        type: "address",
+        indexed: true,
+        internalType: "address",
+      },
+      {
         name: "creator",
         type: "address",
         indexed: true,
@@ -52,11 +59,42 @@ export const evidenceLedgerAbi = [
       {
         name: "metadataHash",
         type: "bytes32",
-        indexed: true,
+        indexed: false,
         internalType: "bytes32",
       },
       {
         name: "nonce",
+        type: "uint256",
+        indexed: false,
+        internalType: "uint256",
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: "event",
+    name: "EvidenceLedgerCreated",
+    inputs: [
+      {
+        name: "contractAddress",
+        type: "address",
+        indexed: true,
+        internalType: "address",
+      },
+      {
+        name: "creator",
+        type: "address",
+        indexed: true,
+        internalType: "address",
+      },
+      {
+        name: "blockNumber",
+        type: "uint256",
+        indexed: true,
+        internalType: "uint256",
+      },
+      {
+        name: "timeStamp",
         type: "uint256",
         indexed: false,
         internalType: "uint256",

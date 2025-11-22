@@ -1,9 +1,9 @@
 {
-  "name": "Custody Chain App",
+  "name": "custodychain_web_app",
   "version": "1.0.0",
   "private": true,
   "workspaces": [
-    "chain-listner",
+    "chain-listener",
     "custodychain-web"
   ],
   "scripts": {

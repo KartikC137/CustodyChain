@@ -2,6 +2,7 @@
 pragma solidity ^0.8.13;
 
 import {Evidence} from "./ChainOfCustody.sol";
+
 contract EvidenceLedger {
     //////////////////
     // Errors      ///
@@ -17,7 +18,16 @@ contract EvidenceLedger {
     //////////////
     // Events  ///
     //////////////
-    event EvidenceCreated(address indexed creator, bytes32 indexed evidenceId, bytes32 indexed metadataHash, uint256 nonce);
+    event EvidenceLedgerCreated(
+        address indexed contractAddress, address indexed creator, uint256 indexed blockNumber, uint256 timeStamp
+    );
+    event EvidenceCreated(
+        address indexed contractAddress,
+        address indexed creator,
+        bytes32 indexed evidenceId,
+        bytes32 metadataHash,
+        uint256 nonce
+    );
     //////////////////
     // Modifiers   ///
     //////////////////
@@ -25,6 +35,11 @@ contract EvidenceLedger {
     //////////////////
     // Functions   ///
     //////////////////
+
+    // Constructor
+    constructor() {
+        emit EvidenceLedgerCreated(address(this), msg.sender, block.number, block.timestamp);
+    }
 
     // External Functions
 
@@ -35,9 +50,9 @@ contract EvidenceLedger {
 
         Evidence evidence = new Evidence(address(this), evidenceId, msg.sender, msg.sender, description);
 
-        require(evidenceIdToEvidenceContract[evidenceId] == address (0), "Evidence ID already exists"); 
+        require(evidenceIdToEvidenceContract[evidenceId] == address(0), "Evidence ID already exists");
         evidenceIdToEvidenceContract[evidenceId] = address(evidence);
-        emit EvidenceCreated(msg.sender, evidenceId, metadataHash, nonce);
+        emit EvidenceCreated(address(evidence), msg.sender, evidenceId, metadataHash, nonce);
     }
 
     // Public and External View Functions

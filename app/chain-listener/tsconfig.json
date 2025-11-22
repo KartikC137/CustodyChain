@@ -1,13 +1,13 @@
 {
   "compilerOptions": {
     "target": "es2022",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
+    "module": "esnext",
+    "moduleResolution": "node",
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,
     "skipLibCheck": true,
     "outDir": "./compiled"
   },
-  "include": ["listener.ts", "**/*.ts"]
+  "include": ["src/index.ts", "**/*.ts"]
 }
