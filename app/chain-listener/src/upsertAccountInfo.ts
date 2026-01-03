@@ -15,7 +15,9 @@ export async function upsertAccountInfo({
       `
       INSERT INTO accounts (address, account_type)
       VALUES ($1, $2)
-      ON CONFLICT (address) DO NOTHING
+      ON CONFLICT (address) 
+      DO UPDATE SET 
+      updated_at = CURRENT_TIMESTAMP;
       `,
       [address, accountType]
     );

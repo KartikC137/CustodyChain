@@ -1,6 +1,6 @@
 "use client";
 
-import Button from "@/components/Button";
+import Button from "@/components/UI/Button";
 import { useWeb3 } from "@/lib/contexts/web3/Web3Context";
 
 export default function ConnectWalletButton() {

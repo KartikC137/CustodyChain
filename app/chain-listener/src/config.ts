@@ -1,7 +1,14 @@
 import dotenv from "dotenv";
+import path from "path";
 import { isAddress, type Address, type Chain } from "viem";
 import { anvil, sepolia } from "viem/chains";
-dotenv.config();
+
+const envPath = path.resolve(__dirname, "../.env");
+const result = dotenv.config({ path: envPath });
+if (result.error) {
+  const alternatePath = path.resolve(process.cwd(), "../chain-listener/.env");
+  dotenv.config({ path: alternatePath });
+}
 
 export function requireEnv(name: string): string {
   const value = process.env[name];
@@ -10,7 +17,6 @@ export function requireEnv(name: string): string {
   }
   return value.trim();
 }
-
 const ledgerAddress = requireEnv("LEDGER_CONTRACT_ADDRESS");
 if (!isAddress(ledgerAddress)) {
   throw new Error(`Config: Invalid LEDGER_CONTRACT_ADDRESS: ${ledgerAddress}`);

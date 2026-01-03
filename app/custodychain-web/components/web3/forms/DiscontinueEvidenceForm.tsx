@@ -7,8 +7,8 @@ import {
   decodeEventLog,
   isAddress,
 } from "viem";
-import Button from "@/components/Button";
-import { evidenceAbi } from "@/lib/constants/abi/chain-of-custody-abi";
+import Button from "@/components/UI/Button";
+import { evidenceAbi } from "../../../../lib/contractAbi/chain-of-custody-abi";
 import { useWeb3 } from "@/lib/contexts/web3/Web3Context";
 
 interface DiscontinueEvidenceProps {

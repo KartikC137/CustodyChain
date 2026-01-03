@@ -1,16 +1,20 @@
 "use client";
 
-import { useState } from "react";
-import {
-  type Address,
-  ContractFunctionRevertedError,
-  decodeEventLog,
-} from "viem";
-import Button from "@/components/Button";
-import Input from "@/components/Input";
-import { evidenceLedgerAbi } from "../../../lib/contractAbi/evidence-ledger-abi";
+import Button from "@/components/UI/Button";
+import Input from "@/components/UI/Input";
+import { evidenceLedgerAbi } from "../../../../lib/contractAbi/evidence-ledger-abi";
 import { evidenceLedgerAddress } from "@/lib/evidence-ledger-address";
+import { useState } from "react";
 import { useWeb3 } from "@/lib/contexts/web3/Web3Context";
+import {
+  encodePacked,
+  keccak256,
+  zeroAddress,
+  Address,
+  UserRejectedRequestError,
+  BaseError,
+} from "viem";
+import { insertClientActivity } from "../../../../chain-listener/src/dispatchers/clientActivity/insertClientActivity";
 
 export default function CreateEvidenceForm() {
   const { account, chain, walletClient, publicClient } = useWeb3();
@@ -31,14 +35,12 @@ export default function CreateEvidenceForm() {
       setError("Please connect your wallet first.");
       return;
     }
+
     if (!evidenceLedgerAddress) {
       setError("Evidence Ledger contract is not deployed on this chain");
+      return;
     }
-    if (!metadataHash.startsWith("0x") || metadataHash.length !== 66) {
-      setError(
-        "Invalid Evidence MetadataHash. Must be start with 0x... and have a length of 66"
-      );
-    }
+
     if (!description) {
       setError("Please provide a description.");
       return;
@@ -47,7 +49,30 @@ export default function CreateEvidenceForm() {
     setIsLoading(true);
 
     try {
-      const hash = await walletClient.writeContract({
+      const _evidenceId = keccak256(
+        encodePacked(
+          ["address", "bytes32", "uint256"],
+          [
+            account as `0x${string}`,
+            metadataHash as `0x${string}`,
+            chain.id as unknown as bigint,
+          ]
+        )
+      );
+      console.log("Evidence ID:", _evidenceId);
+      const _contractAddress = await publicClient.readContract({
+        address: evidenceLedgerAddress,
+        abi: evidenceLedgerAbi,
+        functionName: "getEvidenceContractAddress",
+        args: [_evidenceId],
+      });
+
+      if (_contractAddress !== zeroAddress) {
+        setError("Evidence with this ID already exist!");
+        return;
+      }
+
+      const txHash = await walletClient.writeContract({
         address: evidenceLedgerAddress,
         chain: chain,
         abi: evidenceLedgerAbi,
@@ -57,69 +82,39 @@ export default function CreateEvidenceForm() {
         gas: 1_200_000n,
       });
 
+      const newContractAddress = (await publicClient.readContract({
+        address: evidenceLedgerAddress,
+        abi: evidenceLedgerAbi,
+        functionName: "getEvidenceContractAddress",
+        args: [_evidenceId],
+      })) as Address;
+
+      // DB
+      await insertClientActivity({
+        contractAddress: newContractAddress,
+        evidenceId: _evidenceId,
+        actor: account,
+        type: "create",
+        txHash: txHash,
+      });
+
       setMetadataHash("");
       setDescription("");
-      setTransactionHash(hash);
-
-      const receipt = await publicClient.waitForTransactionReceipt({ hash });
-      const eventLog = receipt.logs
-        .map((log) => {
-          try {
-            return decodeEventLog({ abi: evidenceLedgerAbi, ...log });
-          } catch {
-            return null;
-          }
-        })
-        .find((log) => log?.eventName === "EvidenceCreated");
-
-      if (eventLog) {
-        const {
-          creator: emittedCreator,
-          evidenceId: emittedId,
-          metadataHash: emittedMetadataHash,
-        } = eventLog.args as unknown as {
-          creator: Address;
-          evidenceId: `0x${string}`;
-          metadataHash: `0x${string}`;
-        };
-
-        console.log("Create evidence ID: ", emittedId);
-
-        if (emittedCreator.toLowerCase() !== account.toLowerCase()) {
-          setWarning(
-            "Evidence Creator from contract event does not match your account"
-          );
-        }
-
-        if (emittedMetadataHash !== metadataHash) {
-          setWarning(
-            "Evidence Metadata Hash from contract event does not match"
-          );
-        }
-      } else {
-        setWarning(
-          "Evidence Created, but the CreateEvidence event from contract was not found"
-        );
-      }
+      setTransactionHash(txHash);
     } catch (err) {
-      console.error("Transaction failed:", err);
-      if (err instanceof ContractFunctionRevertedError) {
-        const errorName = err.shortMessage
-          .split("\n")[0]
-          .replace("Error: ", "");
-        if (errorName.startsWith("UnauthorizedDeployment")) {
-          setError("This Deployement is Not Authorized");
-        } else if (errorName.startsWith("CreatorIsNotInitialOwner")) {
-          setError("The Evidence Creator was not found to be Initial Owner");
-        } else if (errorName.startsWith("CallerIsNotCurrentOwner")) {
-          setError("Only Current Owner can perform this action");
-        } else {
-          setError(`Contract Error: ${errorName}`);
+      //todo: test for errors
+      if (err instanceof BaseError) {
+        const isUserRejection = err.walk(
+          (err) => err instanceof UserRejectedRequestError
+        );
+
+        if (isUserRejection) {
+          setError("User rejected the transaction.");
+          return;
         }
-      } else {
-        setError("An unexpected error occured. See console for details.");
-        console.log("CreateEvidenceForm Error:", err);
       }
+      console.error("CreateEvidenceForm Error:", err);
+      setError("An unexpected error occured. See console for details.");
     } finally {
       setIsLoading(false);
     }
@@ -148,7 +143,7 @@ export default function CreateEvidenceForm() {
           onChange={(e) => setMetadataHash(e.target.value)}
           onClick={() => {
             setError(null);
-            setMetadataHash("");
+            // setMetadataHash("");
           }}
           placeholder="0x..."
           required
@@ -177,6 +172,7 @@ export default function CreateEvidenceForm() {
         {transactionHash && (
           <div className="p-2 font-mono text-sm text-orange-700 bg-green-100 rounded">
             <span className="text-green-700">Success,</span> Tx. Hash:{" "}
+            {/* todo: link to evidence page and other info*/}
             {transactionHash}
           </div>
         )}

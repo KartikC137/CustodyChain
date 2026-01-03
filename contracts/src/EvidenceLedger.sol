@@ -46,11 +46,10 @@ contract EvidenceLedger {
     function createEvidence(bytes32 metadataHash, string memory description) external {
         uint256 nonce = ++creatorToNonce[msg.sender];
         // To Do later: Use inline assembly to reduce gas usage by encodePacked
-        bytes32 evidenceId = keccak256(abi.encodePacked(msg.sender, nonce, metadataHash, block.chainid));
-
-        Evidence evidence = new Evidence(address(this), evidenceId, msg.sender, msg.sender, description);
+        bytes32 evidenceId = keccak256(abi.encodePacked(msg.sender, metadataHash, block.chainid));
 
         require(evidenceIdToEvidenceContract[evidenceId] == address(0), "Evidence ID already exists");
+        Evidence evidence = new Evidence(nonce, address(this), evidenceId, msg.sender, msg.sender, description);
         evidenceIdToEvidenceContract[evidenceId] = address(evidence);
         emit EvidenceCreated(address(evidence), msg.sender, evidenceId, metadataHash, nonce);
     }

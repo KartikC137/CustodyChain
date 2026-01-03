@@ -19,6 +19,7 @@ contract Evidence {
     error Error_UnauthorizedDeployment();
     error Error_CreatorIsNotInitialOwner();
     error Error_CallerIsNotCurrentOwner();
+    error Error_SelfTransferIsNotAllowed();
     error Error_CallerIsNotCreator();
     error Error_EvindenceDiscontinued();
 
@@ -30,6 +31,7 @@ contract Evidence {
         uint256 timestamp;
     }
 
+    uint256 private immutable NONCE;
     address private immutable ORIGINAL_EVIDENCE_LEDGER_ADDRESS;
     address private immutable CREATOR;
     bytes32 private immutable EVIDENCE_ID;
@@ -43,8 +45,8 @@ contract Evidence {
     //////////////
     // Events  ///
     //////////////
-    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner, uint256 indexed timeOfTransfer);
-    event EvidenceDiscontinued(bytes32 indexed evidenceId);
+    event OwnershipTransferred(bytes32 indexed evidenceId, address indexed previousOwner, address indexed newOwner, uint256 timeOfTransfer);
+    event EvidenceDiscontinued(bytes32 indexed evidenceId, address indexed caller, uint256 indexed timeOfDiscontinuation);
 
     //////////////////
     // Modifiers   ///
@@ -71,12 +73,14 @@ contract Evidence {
     // Constructor
 
     constructor(
+        uint256 _nonce,
         address _evidenceLedgerAddress,
         bytes32 _evidenceId,
         address _creator,
         address _initialOwner,
         string memory _description
     ) {
+        require(_nonce > 0, "Invalid Nonce. Should be greater than 0.");
         if (msg.sender != _evidenceLedgerAddress) {
             revert Error_UnauthorizedDeployment();
         }
@@ -91,6 +95,7 @@ contract Evidence {
             revert("Invalid description: description cannot be empty");
         }
 
+        NONCE = _nonce;
         ORIGINAL_EVIDENCE_LEDGER_ADDRESS = _evidenceLedgerAddress;
         CREATOR = _creator;
         owner = CREATOR;
@@ -102,14 +107,14 @@ contract Evidence {
 
     // External Functions
     function transferOwnership(address newOwner) external onlyIfActive {
-        address previousOwner = owner;
+        if(msg.sender == newOwner) revert Error_SelfTransferIsNotAllowed();
         _transferOwnership(msg.sender, newOwner);
-        emit OwnershipTransferred(previousOwner, newOwner, block.timestamp);
+        emit OwnershipTransferred(EVIDENCE_ID, msg.sender, owner, block.timestamp);
     }
 
     function discontinueEvidence() external onlyIfActive {
         _discontinueEvidence();
-        emit EvidenceDiscontinued(EVIDENCE_ID);
+        emit EvidenceDiscontinued(EVIDENCE_ID, msg.sender, block.timestamp);
     }
 
     // Private & Internal Functions View function
@@ -124,6 +129,10 @@ contract Evidence {
     }
 
     // Public & External Functions View Functions
+    function getNonce() external view returns(uint256) {
+        return NONCE;
+    }
+
     function getEvidenceId() external view returns (bytes32) {
         return EVIDENCE_ID;
     }

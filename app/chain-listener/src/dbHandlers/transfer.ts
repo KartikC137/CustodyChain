@@ -1,96 +1,204 @@
-// src/dbHandlers/transfer.ts
-import type { NormalizedEvent } from "../blockListeners/ledgerListener";
-import { logger } from "../logger";
 import { withTransaction } from "../db";
+import { logger } from "../logger";
+import {
+  type TransferEvent,
+  type EvidenceTransferredArgs,
+} from "../blockListeners/evidenceListener";
+import { TransferActivityInput } from "../types/activity.types";
+import {
+  upsertAccount,
+  insertNewActivity,
+  handleSingleValidActivity,
+  changeStatusFailedExcept,
+} from "../helpers/acitivtyHelpers";
+import { type Address } from "viem";
 
-type OwnershipTransferredArgs = {
-  previousOwner: `0x${string}`;
-  newOwner: `0x${string}`;
-  timeOfTransfer: bigint | number | string;
-};
+const genericError = "DB: Couldn't transfer evidence";
 
-export async function handleOwnershipTransferred(
-  ev: NormalizedEvent
-): Promise<void> {
+export async function handleOwnershipTransferred(ev: TransferEvent) {
   if (ev.eventName !== "OwnershipTransferred") {
-    logger.warn("handleOwnershipTransferred called with wrong event", {
+    logger.warn("handleEvidenceTransfer called with wrong event", {
       eventName: ev.eventName,
     });
-    return;
+    throw new Error(genericError);
   }
 
-  const args = ev.args as unknown as OwnershipTransferredArgs;
+  const args = ev.args as EvidenceTransferredArgs;
+  const evidenceId = args.evidenceId.toLowerCase() as `0x${string}`;
+  const previousOwner = args.previousOwner.toLowerCase() as Address;
+  const newOwner = args.newOwner.toLowerCase() as Address;
+  const timeOfTransfer = args.timeOfTransfer;
 
-  const previousOwner = args.previousOwner;
-  const newOwner = args.newOwner;
+  const contractAddress = ev.address.toLowerCase() as Address;
+  const txHash = ev.txHash.toLowerCase() as `0x${string}`;
+  const blockNumber = ev.blockNumber ?? 0n;
 
-  if (!newOwner || !previousOwner) {
-    logger.error("handleOwnershipTransferred: missing owners", {
-      args: ev.args,
+  if (
+    !previousOwner ||
+    !newOwner ||
+    !timeOfTransfer ||
+    !txHash ||
+    !evidenceId
+  ) {
+    logger.error("handleEvidenceTransfer: missing args", { args });
+    throw new Error(genericError);
+  }
+
+  if (previousOwner === newOwner) {
+    logger.warn("handleEvidenceTransfer: redundant transfer (self-transfer)", {
+      evidenceId,
     });
-    return;
+    throw new Error(genericError);
   }
 
-  const txHash = ev.txHash;
-  const blockNumber = ev.blockNumber;
-  const evidenceContract = ev.address;
+  const transferActivityInfo: TransferActivityInput = {
+    contractAddress,
+    evidenceId,
+    actor: previousOwner,
+    type: "transfer",
+    from: previousOwner,
+    to: newOwner,
+    txHash,
+    blockNumber,
+    meta: {
+      timeOfTransfer: timeOfTransfer.toString(),
+    },
+  };
+
+  const validActivityCheck = (toCheck: any) =>
+    toCheck.to_addr.toLowerCase() !== toCheck.from_addr.toLowerCase() &&
+    toCheck.txHash.toLowerCase() === txHash &&
+    toCheck.actor.toLowerCase() === previousOwner &&
+    toCheck.contract_address === contractAddress &&
+    toCheck.from_addr.toLowerCase() === previousOwner &&
+    toCheck.to_addr.toLowerCase() === newOwner;
+
+  logger.info("transfer: handling transfer event", {
+    evidenceId,
+    from: previousOwner,
+    to: newOwner,
+    block: blockNumber.toString(),
+  });
 
   await withTransaction(async (client) => {
-    await client.query(
-      `
-      INSERT INTO accounts (address, account_type)
-      VALUES ($1, 'manager')
-      ON CONFLICT (address) DO UPDATE
-        SET updated_at = now(),
-            account_type = CASE
-                WHEN accounts.account_type = 'viewer' THEN 'manager'
-                ELSE accounts.account_type
-            END,
-      `,
-      [previousOwner]
+    const dbEvidence = await client.query(
+      `SELECT current_owner FROM evidence WHERE evidence_id = $1`,
+      [evidenceId]
     );
 
-    await client.query(
-      `
-      INSERT INTO accounts (address, account_type)
-      VALUES ($1, 'manager')
-      ON CONFLICT (address) DO UPDATE
-        SET updated_at = now(),
-            account_type = CASE
-                WHEN accounts.account_type = 'viewer' THEN 'manager'
-                ELSE accounts.account_type
-            END,
-      `,
-      [newOwner]
-    );
-
-    const res = await client.query(
-      `
-      UPDATE evidence
-      SET current_owner   = $1,
-          last_tx_block   = $2,
-          latest_tx_hash  = $3,
-          updated_at      = now()
-      WHERE contract_address = $4
-      `,
-      [newOwner, blockNumber.toString(), txHash, evidenceContract]
-    );
-
-    if (res.rowCount === 0) {
+    if (dbEvidence.rowCount === 0) {
       logger.error(
-        "handleOwnershipTransferred: no such evidence exists with contract Address: ",
+        "handleEvidenceTransfer: evidence not found in DB. Wait for listener to fetch it...",
         {
-          evidenceContract,
+          evidenceId,
         }
       );
+      throw new Error(genericError);
     }
+
+    const dbCurrentOwner = dbEvidence.rows[0].current_owner?.toLowerCase();
+
+    if (dbCurrentOwner && dbCurrentOwner !== previousOwner) {
+      logger.error(
+        "handleEvidenceTransfer: unauthorized transfer flow detected. DB current_owner does not match event previousOwner.",
+        {
+          dbOwner: dbCurrentOwner,
+          eventPreviousOwner: previousOwner,
+          evidenceId,
+        }
+      );
+      throw new Error(genericError);
+    }
+
+    // Accounts Table
+    // insert both users if dont exist already.
+    await upsertAccount(previousOwner, client);
+    await upsertAccount(newOwner, client);
+
+    // Evidence Table
+    // update the evidence preferring listener values
+    await client.query(
+      `
+      UPDATE evidence
+      SET current_owner = $1,
+          updated_at = now(),
+          latest_tx_hash = $2,
+          last_tx_block = $3
+      WHERE evidence_id = $4
+      `,
+      [newOwner, txHash, blockNumber.toString(), evidenceId]
+    );
+
+    logger.info("handleEvidenceTransfer: evidence ownership updated in DB", {
+      evidenceId: evidenceId,
+      previousOwner: previousOwner,
+      currentOwner: newOwner,
+    });
   });
 
-  logger.info("handleOwnershipTransferred: updated evidence", {
-    evidenceContract,
-    previousOwner,
-    newOwner,
-    block: blockNumber.toString(),
-    tx: txHash,
+  // Activity Table Resolution
+  await withTransaction(async (client) => {
+    // fetch all of transfer activity related to this evidence_id, and then order by latest first according to id.
+    const existing = await client.query(
+      `
+        SELECT *
+        FROM activity
+        WHERE evidence_id = $1
+          AND type = 'transfer'
+          AND status IN ('client_only', 'failed')
+          AND from_addr = $2 
+          AND to_addr = $3
+        ORDER BY id DESC
+      `,
+      [evidenceId, previousOwner, newOwner]
+    );
+
+    const rows = existing.rows;
+
+    if (rows.length === 0) {
+      // this activity was performed from somewhere else.
+      logger.info(
+        "handleEvidenceTransfer: missing client activity for this specific transfer. inserting as db_only...",
+        { from: previousOwner, to: newOwner }
+      );
+      await insertNewActivity(client, "db_only", transferActivityInfo);
+      return;
+    }
+
+    // check validity of transfer activity
+    const validActivities = rows.filter((r) => validActivityCheck(r));
+
+    if (validActivities.length >= 1) {
+      // out of all valid ones, select latest one by id.
+      const activity = validActivities[0];
+      const activityId = BigInt(activity.id);
+
+      logger.info("handleEvidenceTransfer: found valid matching activity", {
+        id: activityId.toString(),
+      });
+
+      // if client_only -> on_chain, if failed -> assume it was created from somewhere else.
+      await handleSingleValidActivity(client, activity);
+
+      if (validActivities.length > 1) {
+        // if more than one valid activities were found, mark the rest as failed
+        await changeStatusFailedExcept(
+          evidenceId,
+          client,
+          activityId,
+          "transfer"
+        );
+      }
+      return;
+    }
+
+    // no valid activity was found, mark all of them as failed and insert a new one.
+    logger.warn(
+      "handleEvidenceTransfer: activities found for this sender/receiver, but TxHash mismatch. Failing them and inserting new."
+    );
+    await changeStatusFailedExcept(evidenceId, client, -1n, "transfer");
+    await insertNewActivity(client, "on_chain", transferActivityInfo);
   });
+
+  logger.info("handleEvidenceTransfer: complete", { evidenceId });
 }

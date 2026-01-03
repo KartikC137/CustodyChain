@@ -2,7 +2,7 @@ import "./globals.css";
 import type { Metadata } from "next";
 import { Montserrat } from "next/font/google";
 import Link from "next/link";
-// import ActivityPanel from "@/components/layout/ActivityPanel";
+import ActivityPanel from "@/components/layout/ActivityPanel";
 import Navbar from "@/components/layout/Navbar";
 import ConnectWalletButton from "@/components/web3/ConnectWalletButton";
 import Web3Provider from "@/components/web3/Web3Provider";
@@ -42,6 +42,7 @@ export default function RootLayout({
               </div>
             </div>
             <Navbar />
+            <ActivityPanel />
           </div>
           {children}
         </Web3Provider>

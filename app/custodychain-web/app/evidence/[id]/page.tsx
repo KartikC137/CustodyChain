@@ -3,13 +3,13 @@
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import type { Address } from "viem";
-import fetchEvidence from "@/app/api/web3/FetchEvidence";
+import fetchEvidence from "@/components/web3/FetchEvidence";
 import DiscontinueEvidence, {
   type DiscontinueEvidenceResult,
-} from "@/components/web3/DiscontinueEvidence";
+} from "@/components/web3/forms/DiscontinueEvidenceForm";
 import TransferOwnershipForm, {
   type TransferResult,
-} from "@/components/web3/TransferOwnership";
+} from "@/components/web3/forms/TransferOwnershipForm";
 import { useWeb3 } from "@/lib/contexts/web3/Web3Context";
 
 const formatTimestamp = (rawTimeStamp: bigint) => {
@@ -128,7 +128,7 @@ export default function EvidencePage() {
               {formatTimestamp(
                 evidenceDetails.chainOfCustody[
                   evidenceDetails.chainOfCustody.length - 1
-                ].timestamp,
+                ].timestamp
               )}
             </span>
           </p>

@@ -6,3 +6,7 @@
 
 # Dev files
 DevFiles/
+
+# foundry
+out/
+cache/

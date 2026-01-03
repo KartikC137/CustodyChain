@@ -2,6 +2,7 @@ export const evidenceAbi = [
   {
     type: "constructor",
     inputs: [
+      { name: "_nonce", type: "uint256", internalType: "uint256" },
       {
         name: "_evidenceLedgerAddress",
         type: "address",
@@ -83,6 +84,13 @@ export const evidenceAbi = [
   },
   {
     type: "function",
+    name: "getNonce",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
     name: "getTimeOfCreation",
     inputs: [],
     outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
@@ -112,6 +120,18 @@ export const evidenceAbi = [
         indexed: true,
         internalType: "bytes32",
       },
+      {
+        name: "caller",
+        type: "address",
+        indexed: true,
+        internalType: "address",
+      },
+      {
+        name: "timeOfDiscontinuation",
+        type: "uint256",
+        indexed: true,
+        internalType: "uint256",
+      },
     ],
     anonymous: false,
   },
@@ -119,6 +139,12 @@ export const evidenceAbi = [
     type: "event",
     name: "OwnershipTransferred",
     inputs: [
+      {
+        name: "evidenceId",
+        type: "bytes32",
+        indexed: true,
+        internalType: "bytes32",
+      },
       {
         name: "previousOwner",
         type: "address",
@@ -134,7 +160,7 @@ export const evidenceAbi = [
       {
         name: "timeOfTransfer",
         type: "uint256",
-        indexed: true,
+        indexed: false,
         internalType: "uint256",
       },
     ],
@@ -144,5 +170,6 @@ export const evidenceAbi = [
   { type: "error", name: "Error_CallerIsNotCurrentOwner", inputs: [] },
   { type: "error", name: "Error_CreatorIsNotInitialOwner", inputs: [] },
   { type: "error", name: "Error_EvindenceDiscontinued", inputs: [] },
+  { type: "error", name: "Error_SelfTransferIsNotAllowed", inputs: [] },
   { type: "error", name: "Error_UnauthorizedDeployment", inputs: [] },
 ];

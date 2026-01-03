@@ -49,9 +49,7 @@ export default function Web3Provider({ children }: Web3ProviderProps) {
       try {
         const provider = getProvider();
         if (!provider) {
-          console.error(
-            "No Ethereum provider available (MetaMask not installed).",
-          );
+          console.error("Install Metamask to continue...");
           return;
         }
 
@@ -65,7 +63,7 @@ export default function Web3Provider({ children }: Web3ProviderProps) {
           alert(
             "Unsupported network: " +
               chainId +
-              " . Please switch to a supported network.",
+              " . Please switch to a supported network."
           );
           return;
         }
@@ -86,19 +84,19 @@ export default function Web3Provider({ children }: Web3ProviderProps) {
         setPublicClient(finalPublicClient);
 
         console.log(
-          `Provider initialized on ${currentChain.name} for ${connectedAccount}`,
+          `Provider initialized on ${currentChain.name} for ${connectedAccount}`
         );
       } catch (error) {
         console.error("Failed to initialize provider:", error);
       }
     },
-    [getProvider],
+    [getProvider]
   );
 
   const connectWallet = useCallback(async () => {
     const provider = getProvider();
     if (!provider) {
-      alert("Please install MetaMask!");
+      alert("Wallet disconnected.");
       return;
     }
     try {
