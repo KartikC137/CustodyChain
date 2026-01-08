@@ -6,7 +6,7 @@ import type {
   EvidenceCreatedArgs,
   CreateEvent,
 } from "../blockListeners/ledgerListener";
-import { CreateActivityInput } from "../types/activity.types";
+import { CreateActivityInput } from "../../../custodychain-web/lib/types/activity.types";
 import {
   insertNewActivity,
   changeStatus,

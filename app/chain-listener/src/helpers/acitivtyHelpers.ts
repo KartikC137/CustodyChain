@@ -1,62 +1,87 @@
 import { PoolClient } from "pg";
-import { ActivityInput, ActivityStatus } from "../types/activity.types";
-import { query } from "../db";
+import { query } from "../db.js";
+import { logger } from "../logger.js";
+import { getIO } from "../socket.js";
 
-export async function insertNewActivity(
-  status: ActivityStatus,
-  activityInfo: ActivityInput,
-  client?: PoolClient // if using client.withTransaction()
-): Promise<bigint> {
-  let from, to;
-  if (activityInfo.type === "transfer") {
-    from = activityInfo.from ? activityInfo.from.toLowerCase() : null;
-    to = activityInfo.to ? activityInfo.to.toLowerCase() : null;
-  }
-  const meta = activityInfo.meta ?? {};
-  const blockNumber = activityInfo.blockNumber ?? 0;
-
-  const sql = `
-    INSERT INTO activity (
-      contract_address,
-      evidence_id,
-      actor,
-      type,
-      from_addr,
-      to_addr,
-      status,
-      tx_hash,
-      block_number,
-      meta,
-      initialized_at,
-      updated_at
-    )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, now(), now())
-    RETURNING id
-    `;
-
-  const params = [
-    activityInfo.contractAddress.toLowerCase(),
-    activityInfo.evidenceId.toLowerCase(),
-    activityInfo.actor.toLowerCase(),
-    activityInfo.type,
-    from?.toLowerCase(),
-    to?.toLowerCase(),
-    status,
-    activityInfo.txHash?.toLowerCase(),
-    blockNumber.toString(),
-    meta,
-  ];
+// for client activities only.
+export async function updateActivityForClient(
+  activityId: bigint,
+  status: "client_only" | "failed",
+  txHash: `0x${string}` | null,
+  blockNumber: bigint | null,
+  error?: string
+) {
+  const io = getIO();
   let result;
-  if (client) {
-    result = await client.query(sql, params);
-  } else {
-    result = await query(sql, params);
+  try {
+    if (status === "failed") {
+      result = await query(
+        `
+        UPDATE activity
+        SET status = 'failed',
+            updated_at = now(),
+            tx_hash = $1,
+            block_number = $2,
+            meta = jsonb_set(
+            COALESCE(meta, '{}'),
+            '{error}',
+            to_jsonb($3::text),
+            true
+          )
+        WHERE id = $4
+        RETURNING updated_at,actor,evidence_id
+        `,
+        [
+          txHash ? txHash.toLowerCase() : null,
+          blockNumber ? blockNumber.toString() : null,
+          String(error || "unknown error"),
+          activityId.toString(),
+        ]
+      );
+    } else if (status === "client_only" && txHash) {
+      result = await query(
+        `
+        UPDATE activity
+        SET status = 'client_only',
+            tx_hash = $1,
+            block_number = $2,
+            updated_at = now()
+        WHERE id = $3
+        RETURNING updated_at,actor,evidence_id
+        `,
+        [
+          txHash.toLowerCase(),
+          blockNumber ? blockNumber.toString() : null,
+          activityId.toString(),
+        ]
+      );
+    }
+
+    const newUpdatedAt = result?.rows[0].updated_at;
+    const account = result?.rows[0].actor;
+    const evidence_id = result?.rows[0].evidence_id;
+
+    io.emit("activity:update", {
+      activityId: activityId.toString(),
+      status: status,
+      account: account,
+      evidenceId: evidence_id,
+      txHash: txHash ? txHash.toLowerCase() : null,
+      updatedAt: newUpdatedAt,
+      error: error,
+    });
+    logger.info(
+      `dispatchActivity: emit socket event : Account: ${account} evidence: ${evidence_id} updatedAt: ${newUpdatedAt}`
+    );
+  } catch (err) {
+    logger.error(
+      "dispatchActivity: updateActivityForClient failed. Query error:",
+      err
+    );
+    throw new Error("Update activity failed.");
+    //TODO emit socket event here to handle db failures
   }
-
-  const row = result.rows[0];
-  if (!row) throw new Error("Insert failed, no ID returned");
-
-  return BigInt(row.id);
+  return;
 }
 
 // only for use of dbHandler, move it there later, internal function.

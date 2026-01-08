@@ -1,5 +1,5 @@
 import { createPublicClient, http } from "viem";
-import { config } from "./config";
+import { config } from "./config.js";
 
 export const publicClient = createPublicClient({
   transport: http(),

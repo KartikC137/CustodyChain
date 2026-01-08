@@ -6,7 +6,7 @@ import {
   type DiscontinueEvent,
   type EvidenceDiscontinuedArgs,
 } from "../blockListeners/evidenceListener";
-import { DiscontinueActivityInput } from "../types/activity.types";
+import { DiscontinueActivityInput } from "../../../custodychain-web/lib/types/activity.types";
 //todo fix this later
 import {
   upsertAccount,

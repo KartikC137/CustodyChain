@@ -1,5 +1,10 @@
 import { z } from "zod";
-import { AddressSchema, Bytes32Schema } from "./solidity.types";
+import {
+  AddressSchema,
+  Bytes32Schema,
+  Address,
+  Bytes32,
+} from "./solidity.types";
 
 const BaseActivitySchema = z.object({
   contractAddress: AddressSchema,
@@ -43,16 +48,34 @@ export const ActivityInputSchema = z.discriminatedUnion("type", [
   FetchActivitySchema,
 ]);
 
+export type ActivityType = "create" | "transfer" | "discontinue" | "fetch";
 // type of row in activities table
 export interface ActivityRow {
-  evidence_id: string;
-  actor: string;
+  id: bigint;
+  initialized_at: Date | null;
+  updated_at: Date | null;
+  evidence_id: Bytes32;
+  actor: Bytes32;
+  type: ActivityType;
   status: ActivityStatus;
-  type: "create" | "transfer" | "discontinue" | "fetch";
-  from_addr: string;
-  to_addr: string | null;
-  updated_at: Date;
-  // ...other fields if needed
+  tx_hash: Bytes32;
+  block_number: bigint | null;
+  from_addr?: Address;
+  to_addr?: Address;
+  meta: any;
+  contract_address: string;
+}
+// essential info for activity panel
+export interface ActivityInfoForPanel {
+  id: bigint;
+  type: ActivityType;
+  status: ActivityStatus;
+  tx_hash: Bytes32;
+  from_addr?: Address;
+  to_addr?: Address;
+  updated_at: Date | null;
+  actor: Address;
+  evidence_id: Bytes32;
 }
 
 export type ActivityStatus = z.infer<typeof ActivityStatusSchema>;

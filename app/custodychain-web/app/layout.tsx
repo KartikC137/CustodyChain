@@ -5,7 +5,8 @@ import Link from "next/link";
 import ActivityPanel from "@/components/layout/ActivityPanel";
 import Navbar from "@/components/layout/Navbar";
 import ConnectWalletButton from "@/components/web3/ConnectWalletButton";
-import Web3Provider from "@/components/web3/Web3Provider";
+import { Web3Provider } from "../contexts/web3/Web3Context";
+import { ActivityProvider } from "@/contexts/ActivitiesContext";
 
 const monsterrat = Montserrat({
   variable: "--font-monsteratt",
@@ -26,25 +27,27 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`h-screen p-4 grid grid-cols-[0.8fr_2fr] ${monsterrat.variable} antialiased`}
+        className={`h-screen p-4 flex flex-col grid grid-cols-[0.8fr_2fr] overflow-hidden ${monsterrat.variable} antialiased`}
       >
         <Web3Provider>
-          <div className="pr-4 space-y-2">
-            <div className="p-5 rounded-md font-mono font-semibold bg-green-100 border-2 border-green-700">
-              <Link
-                href="/"
-                className="text-4xl text-blue-600 hover:text-blue-800"
-              >
-                Custody-Chain
-              </Link>
-              <div className="text-lg text-green-900">
-                <ConnectWalletButton />
+          <ActivityProvider>
+            <div className="pr-4 space-y-2 grid grid-rows-[auto_auto_1fr]">
+              <div className="p-5 rounded-md font-mono font-semibold bg-green-100 border-2 border-green-700">
+                <Link
+                  href="/"
+                  className="text-4xl text-blue-600 hover:text-blue-800"
+                >
+                  Custody-Chain
+                </Link>
+                <div className="text-lg text-green-900">
+                  <ConnectWalletButton />
+                </div>
               </div>
+              <Navbar />
+              <ActivityPanel />
             </div>
-            <Navbar />
-            <ActivityPanel />
-          </div>
-          {children}
+            {children}
+          </ActivityProvider>
         </Web3Provider>
       </body>
     </html>

@@ -10,7 +10,7 @@ import DiscontinueEvidence, {
 import TransferOwnershipForm, {
   type TransferResult,
 } from "@/components/web3/forms/TransferOwnershipForm";
-import { useWeb3 } from "@/lib/contexts/web3/Web3Context";
+import { useWeb3 } from "@/contexts/web3/Web3Context";
 
 const formatTimestamp = (rawTimeStamp: bigint) => {
   if (rawTimeStamp === 0n) return "N/A";
@@ -274,9 +274,7 @@ export default function EvidencePage() {
             {account?.toLowerCase() ===
               evidenceDetails.currentOwner.toLowerCase() && (
               <TransferOwnershipForm
-                evidenceContractAddress={
-                  evidenceDetails.contractAddress as Address
-                }
+                contractAddress={evidenceDetails.contractAddress as Address}
                 isActive={evidenceDetails.isActive as boolean}
                 currentOwner={evidenceDetails.currentOwner as Address}
                 evidenceId={evidenceDetails.id as `0x${string}`}
@@ -287,9 +285,7 @@ export default function EvidencePage() {
             {account?.toLowerCase() ===
               evidenceDetails.creator.toLowerCase() && (
               <DiscontinueEvidence
-                evidenceContractAddress={
-                  evidenceDetails.contractAddress as Address
-                }
+                contractAddress={evidenceDetails.contractAddress as Address}
                 evidenceId={evidenceDetails.id as `0x${string}`}
                 isActive={evidenceDetails.isActive as boolean}
                 creator={evidenceDetails.creator as Address}

@@ -1,77 +1,8 @@
-import { publicClient } from "../web3config";
-import { ActivityInput } from "../types/activity.types";
-import { query } from "../db";
-import { logger } from "../logger";
-import { getIO } from "../socket";
+import { publicClient } from "../web3config.js";
+import { logger } from "../logger.js";
+import { updateActivityForClient } from "../helpers/acitivtyHelpers.js";
 
 // TODO: additional transfer and discontinue checks imminent, to make validator's task easier
-
-// internal function
-async function updateActivityForClient(
-  activityId: bigint,
-  status: "client_only" | "failed",
-  txHash: `0x${string}` | null,
-  blockNumber: bigint | null,
-  error?: string
-) {
-  const io = getIO();
-  try {
-    if (status === "failed") {
-      await query(
-        `
-        UPDATE activity
-        SET status = 'failed',
-            updated_at = now(),
-            tx_hash = $1,
-            block_number = $2,
-            meta = jsonb_set(
-            COALESCE(meta, '{}'),
-            '{error}',
-            to_jsonb($3::text),
-            true
-          )
-        WHERE id = $4
-        `,
-        [
-          txHash ? txHash.toLowerCase() : null,
-          blockNumber ? blockNumber.toString() : null,
-          String(error || "unknown error"),
-          activityId.toString(),
-        ]
-      );
-    } else if (status === "client_only" && txHash) {
-      await query(
-        `
-        UPDATE activity
-        SET status = 'client_only',
-            tx_hash = $1,
-            block_number = $2,
-            updated_at = now()
-        WHERE id = $3
-        `,
-        [
-          txHash.toLowerCase(),
-          blockNumber ? blockNumber.toString() : null,
-          activityId.toString(),
-        ]
-      );
-    }
-
-    // emit event
-    io.emit("activity:update", {
-      activityId: activityId.toString(),
-      status: status,
-      error: error,
-    });
-    return;
-  } catch (err) {
-    logger.error(
-      "dispatchActivity: updateActivityForClient failed. Query error:",
-      err
-    );
-    throw err;
-  }
-}
 
 export async function dispatchActivity(
   activityId: bigint,
@@ -82,6 +13,7 @@ export async function dispatchActivity(
     logger.error("dispatchActivity: query error, invalid activity Id.");
     throw new Error("DB: activity insertion failed");
   }
+
   if (!txHash) {
     logger.warn(
       "dispatchActivity: txHash not provided, marking activity as failed.",
@@ -105,7 +37,15 @@ export async function dispatchActivity(
       hash: txHash as `0x${string}`,
       timeout: 10_000, // 10 seconds
     });
-  } catch {
+  } catch (err) {
+    logger.error("dispatchActivity: fetching reciept failed:", {
+      hash: txHash,
+      originalError: err,
+    });
+    throw new Error("receipt fetching failed");
+  }
+
+  if (!receipt) {
     logger.warn(
       "dispatchActivity: couldn't fetch tx within timout. marking activity as failed...",
       {
@@ -142,6 +82,11 @@ export async function dispatchActivity(
     txHash,
     receipt?.blockNumber
   );
+
+  // TODO: need to update nonce of account if activity is of type create
+  logger.info("dispatchActivity: updated activity status to client_only!", {
+    id: activityId,
+  });
   return;
 }
 

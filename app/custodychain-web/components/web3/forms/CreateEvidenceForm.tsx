@@ -3,9 +3,10 @@
 import Button from "@/components/UI/Button";
 import Input from "@/components/UI/Input";
 import { evidenceLedgerAbi } from "../../../../lib/contractAbi/evidence-ledger-abi";
-import { evidenceLedgerAddress } from "@/lib/evidence-ledger-address";
+import { evidenceLedgerAddress } from "../../../../lib/evidence-ledger-address";
 import { useState } from "react";
-import { useWeb3 } from "@/lib/contexts/web3/Web3Context";
+import { useWeb3 } from "@/contexts/web3/Web3Context";
+import { useActivities } from "@/contexts/ActivitiesContext";
 import {
   encodePacked,
   keccak256,
@@ -14,9 +15,11 @@ import {
   UserRejectedRequestError,
   BaseError,
 } from "viem";
-import { insertClientActivity } from "../../../../chain-listener/src/dispatchers/clientActivity/insertClientActivity";
+import { insertClientActivity } from "../../../app/api/clientActivity/insertClientActivity";
+import { ActivityInfoForPanel } from "@/lib/types/activity.types";
 
 export default function CreateEvidenceForm() {
+  const { addPendingActivity } = useActivities();
   const { account, chain, walletClient, publicClient } = useWeb3();
   const [metadataHash, setMetadataHash] = useState<string>("");
   const [description, setDescription] = useState<string>("");
@@ -59,7 +62,7 @@ export default function CreateEvidenceForm() {
           ]
         )
       );
-      console.log("Evidence ID:", _evidenceId);
+
       const _contractAddress = await publicClient.readContract({
         address: evidenceLedgerAddress,
         abi: evidenceLedgerAbi,
@@ -82,16 +85,20 @@ export default function CreateEvidenceForm() {
         gas: 1_200_000n,
       });
 
-      const newContractAddress = (await publicClient.readContract({
-        address: evidenceLedgerAddress,
-        abi: evidenceLedgerAbi,
-        functionName: "getEvidenceContractAddress",
-        args: [_evidenceId],
-      })) as Address;
+      const pendingActivity: ActivityInfoForPanel = {
+        id: BigInt("-1"), //Temporary placeholder
+        status: "pending",
+        type: "create",
+        actor: account as Address,
+        tx_hash: txHash,
+        updated_at: null,
+        evidence_id: _evidenceId,
+      };
+      addPendingActivity(pendingActivity);
 
       // DB
       await insertClientActivity({
-        contractAddress: newContractAddress,
+        contractAddress: _contractAddress,
         evidenceId: _evidenceId,
         actor: account,
         type: "create",

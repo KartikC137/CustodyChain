@@ -1,9 +1,9 @@
+import { config } from "./config.js";
+import { logger } from "./logger.js";
 import { createServer } from "node:http";
-import { initSocket } from "./socket";
-import { logger } from "./logger";
-import { config } from "./config";
+import { initSocket } from "./socket.js";
 import { Client } from "pg";
-import { dispatchActivity } from "./dispatchers/dispatchActivity";
+import { dispatchActivity } from "./dispatchers/dispatchActivity.js";
 
 const httpServer = createServer();
 initSocket(httpServer);
@@ -20,11 +20,9 @@ async function main() {
   await pgClient.connect();
   logger.info(`Connected to PgClient`);
 
-  // Start listening to the channel
-  await pgClient.query("LISTEN new_pending_activity_channel");
+  await pgClient.query("LISTEN pending_activity_channel");
   console.log("Listening for new pending activities...");
 
-  // Handle the notification
   pgClient.on("notification", async (msg) => {
     if (msg.channel === "pending_activity_channel" && msg.payload) {
       const data = JSON.parse(msg.payload);

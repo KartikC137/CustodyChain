@@ -4,7 +4,7 @@ import {
   type TransferEvent,
   type EvidenceTransferredArgs,
 } from "../blockListeners/evidenceListener";
-import { TransferActivityInput } from "../types/activity.types";
+import { TransferActivityInput } from "../../../custodychain-web/lib/types/activity.types";
 import {
   upsertAccount,
   insertNewActivity,

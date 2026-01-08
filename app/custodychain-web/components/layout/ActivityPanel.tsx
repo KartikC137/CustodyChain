@@ -1,80 +1,46 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
-import { useWeb3 } from "@/lib/contexts/web3/Web3Context";
-import { fetchActivitiesByAccount } from "../../../chain-listener/src/dispatchers/clientActivity/fetchClientActivity";
-import { ActivityRow } from "../../../chain-listener/src/types/activity.types";
-import { Address } from "viem";
+import { useWeb3 } from "@/contexts/web3/Web3Context";
+import { useActivities } from "../../contexts/ActivitiesContext";
+import { ActivityInfoForPanel } from "../../lib/types/activity.types";
 
 export default function ActivityPanel() {
   const { account } = useWeb3();
-  const [activities, setActivities] = useState<ActivityRow[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
+  const { activities, isLoadingActivities } = useActivities();
 
-  const loadActivities = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const data = await fetchActivitiesByAccount(account as Address, 10);
-      setActivities(data);
-    } catch (err) {
-      console.error("Failed to fetch activities:", err);
-      setError("Failed to load activities.");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [account]);
-
-  useEffect(() => {
-    if (!account) return;
-    loadActivities();
-  }, [account]);
-
-  function formatActivityType(type: string) {
-    return type.toUpperCase();
-  }
-
-  // 3. Render Logic
   return (
-    <div className="rounded-md bg-orange-50 border-2 border-orange-700 flex flex-col">
+    <div className="rounded-md bg-orange-50 border-2 border-orange-700">
       <p className="pl-5 pt-3 font-sans font-[500] text-2xl text-orange-700">
         Activity:
       </p>
 
-      <div className="flex-1 p-5 space-y-2 overflow-y-auto max-h-[400px]">
-        {/* State: Wallet not connected */}
+      <div className="max-h-[640px] p-5 space-y-2 overflow-y-auto">
         {!account ? (
           <p className="text-center text-sm text-gray-500 p-4">
             Connect your wallet to see activity.
           </p>
-        ) : isLoading ? (
-          /* State: Loading */
+        ) : isLoadingActivities ? (
           <p className="text-center text-sm text-gray-500 p-4 animate-pulse">
             Loading activities...
           </p>
-        ) : error ? (
-          /* State: Error */
-          <p className="text-center text-sm text-red-500 p-4">{error}</p>
         ) : activities.length === 0 ? (
-          /* State: Empty */
           <p className="text-center text-sm text-gray-500 p-4">
             No recent activity recorded.
           </p>
         ) : (
-          /* State: List */
-          activities.map((activity) => {
-            // Create a unique key
-            const key = `${activity.evidence_id}-${activity.type}-${activity.updated_at}`;
+          activities.map((activity: ActivityInfoForPanel) => {
+            const key = `${activity.tx_hash}-${activity.evidence_id}-${activity.status}-${activity.type}`;
 
             return (
               <div
                 key={key}
-                className="text-md font-mono border-b border-orange-400 pb-2 last:border-0"
+                className="p-2 border-b border-orange-700 last:border-0 text-md font-mono"
               >
                 <div className="flex justify-between items-center">
+                  {/* TODO: 
+                  update for : status - on_chain, db_only and type - fetch (if viable)
+                  currently for : status - failed, pending and client_only and type - create, transfer, discontinue */}
                   <span
                     className={`font-semibold text-xs ${
                       activity.type === "discontinue"
@@ -84,11 +50,14 @@ export default function ActivityPanel() {
                           : "text-green-800"
                     }`}
                   >
-                    {formatActivityType(activity.type)}
+                    {activity.type.toUpperCase()}
+                    {activity.status === "pending" ? "Pending" : ""}
+                    {activity.status === "failed" ? "failed re" : ""}
                   </span>
+
                   <span className="text-[10px] text-orange-700">
-                    {/* Handle Date serialization from Server Action */}
-                    {new Date(activity.updated_at).toLocaleString()}
+                    {/* Handle Date serialization: Context ensures these are Date objects */}
+                    date insert here
                   </span>
                 </div>
 
@@ -99,7 +68,6 @@ export default function ActivityPanel() {
                   ID: {activity.evidence_id.slice(0, 10)}...
                 </Link>
 
-                {/* Conditionally render TO/FROM based on columns */}
                 {activity.type === "transfer" && activity.to_addr && (
                   <div className="text-[10px] text-gray-600 truncate">
                     To: {activity.to_addr.slice(0, 10)}...

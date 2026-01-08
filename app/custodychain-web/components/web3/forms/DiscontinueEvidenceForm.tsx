@@ -1,18 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import {
-  type Address,
-  ContractFunctionRevertedError,
-  decodeEventLog,
-  isAddress,
-} from "viem";
+import { type Address, ContractFunctionRevertedError, isAddress } from "viem";
 import Button from "@/components/UI/Button";
 import { evidenceAbi } from "../../../../lib/contractAbi/chain-of-custody-abi";
-import { useWeb3 } from "@/lib/contexts/web3/Web3Context";
+import { useWeb3 } from "@/contexts/web3/Web3Context";
+import { useActivities } from "@/contexts/ActivitiesContext";
+import { insertClientActivity } from "@/app/api/clientActivity/insertClientActivity";
+import { ActivityInfoForPanel } from "@/lib/types/activity.types";
 
 interface DiscontinueEvidenceProps {
-  evidenceContractAddress: Address;
+  contractAddress: Address;
   evidenceId: `0x${string}`;
   isActive: boolean;
   creator: Address;
@@ -26,13 +24,14 @@ export interface DiscontinueEvidenceResult {
 }
 
 export default function DiscontinueEvidence({
-  evidenceContractAddress,
+  contractAddress,
   evidenceId,
   isActive,
   creator,
   onDiscontinueEvidenceComplete,
 }: DiscontinueEvidenceProps) {
   const { account, chain, publicClient, walletClient } = useWeb3();
+  const { addPendingActivity } = useActivities();
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   let errorMessage: string;
@@ -64,39 +63,34 @@ export default function DiscontinueEvidence({
     setIsLoading(true);
 
     try {
-      const hash = await walletClient.writeContract({
-        address: evidenceContractAddress,
+      const txHash = await walletClient.writeContract({
+        address: contractAddress,
         chain: chain,
         abi: evidenceAbi,
         functionName: "discontinueEvidence",
         account,
       });
+      const pendingActivity: ActivityInfoForPanel = {
+        id: BigInt("-1"), //Temporary placeholder
+        status: "pending",
+        type: "discontinue",
+        actor: account,
+        tx_hash: txHash,
+        updated_at: null,
+        evidence_id: evidenceId,
+      };
+      addPendingActivity(pendingActivity);
 
-      const receipt = await publicClient.waitForTransactionReceipt({ hash });
-
-      const eventLog = receipt.logs
-        .map((log) => {
-          try {
-            return decodeEventLog({ abi: evidenceAbi, ...log });
-          } catch {
-            return null;
-          }
-        })
-        .find((log) => log?.eventName === "EvindenceDiscontinued");
-      if (eventLog) {
-        const { evidenceId: emittedId } = eventLog.args as unknown as {
-          evidenceId: `0x${string}`;
-        };
-        if (emittedId !== evidenceId) {
-          warningMessage = "Evidence ID from Contract Event does not Match";
-        }
-      } else {
-        warningMessage =
-          "Evidence Discontinue, but the EvidenceDiscontinued event was not found";
-      }
-
-      onDiscontinueEvidenceComplete({ hash, warning: warningMessage });
+      // DB
+      await insertClientActivity({
+        contractAddress: contractAddress,
+        evidenceId: evidenceId,
+        actor: account,
+        type: "discontinue",
+        txHash: txHash,
+      });
     } catch (err) {
+      // todo fix errors
       console.error("Transaction failed:", err);
       if (err instanceof ContractFunctionRevertedError) {
         const errorName = err.shortMessage

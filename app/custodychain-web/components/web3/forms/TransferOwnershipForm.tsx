@@ -1,19 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import {
-  type Address,
-  ContractFunctionRevertedError,
-  decodeEventLog,
-  isAddress,
-} from "viem";
+import { type Address, ContractFunctionRevertedError, isAddress } from "viem";
 import Button from "@/components/UI/Button";
 import Input from "@/components/UI/Input";
 import { evidenceAbi } from "../../../../lib/contractAbi/chain-of-custody-abi";
-import { useWeb3 } from "@/lib/contexts/web3/Web3Context";
+import { useWeb3 } from "@/contexts/web3/Web3Context";
+import { useActivities } from "@/contexts/ActivitiesContext";
+import { insertClientActivity } from "@/app/api/clientActivity/insertClientActivity";
+import { ActivityInfoForPanel } from "@/lib/types/activity.types";
 
 interface TransferOwnershipFormProps {
-  evidenceContractAddress: Address;
+  contractAddress: Address;
   isActive: boolean;
   currentOwner: Address;
   evidenceId: `0x${string}`;
@@ -27,21 +25,22 @@ export interface TransferResult {
 }
 
 export default function TransferOwnershipForm({
-  evidenceContractAddress,
+  contractAddress,
   isActive,
   currentOwner,
   evidenceId,
   onTransferComplete,
 }: TransferOwnershipFormProps) {
   const { account, chain, walletClient, publicClient } = useWeb3();
+  const { addPendingActivity } = useActivities();
 
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [nextOwner, setNextOwner] = useState<Address | "">("");
 
   const [error, setError] = useState<string | undefined>(undefined);
   const [txHash, setTxHash] = useState<string | null>(null);
+
   let errorMessage: string;
-  let warningMessage: string;
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -80,8 +79,20 @@ export default function TransferOwnershipForm({
     setIsLoading(true);
 
     try {
-      const hash = await walletClient.writeContract({
-        address: evidenceContractAddress,
+      const _currentOwner = await publicClient.readContract({
+        address: contractAddress,
+        abi: evidenceAbi,
+        functionName: "getCurrentOwner",
+        args: [],
+      });
+
+      if (_currentOwner === account) {
+        setError("You the current owner!");
+        return;
+      }
+
+      const txHash = await walletClient.writeContract({
+        address: contractAddress,
         chain: chain,
         abi: evidenceAbi,
         functionName: "transferOwnership",
@@ -90,41 +101,34 @@ export default function TransferOwnershipForm({
         gas: 1_200_000n,
       });
 
-      setTxHash(hash);
+      setTxHash(txHash);
 
-      const receipt = await publicClient.waitForTransactionReceipt({ hash });
-      const eventLog = receipt.logs
-        .map((log) => {
-          try {
-            return decodeEventLog({ abi: evidenceAbi, ...log });
-          } catch {
-            return null;
-          }
-        })
-        .find((log) => log?.eventName === "OwnershipTransferred");
+      const pendingActivity: ActivityInfoForPanel = {
+        id: BigInt("-1"), //Temporary placeholder
+        status: "pending",
+        type: "transfer",
+        actor: account,
+        tx_hash: txHash,
+        updated_at: null,
+        evidence_id: evidenceId,
+        from_addr: account,
+        to_addr: nextOwner,
+      };
+      addPendingActivity(pendingActivity);
 
-      if (eventLog) {
-        const { previousOwner, newOwner } = eventLog.args as unknown as {
-          previousOwner: Address;
-          newOwner: Address;
-        };
-
-        if (previousOwner.toLowerCase() !== account.toLowerCase()) {
-          warningMessage =
-            "The Contract Event's previous Owner does not match your account";
-        }
-        if (newOwner.toLowerCase() !== nextOwner.toLowerCase()) {
-          warningMessage =
-            "The Contract Event's New Owner does not match the intended address";
-        }
-      } else {
-        warningMessage =
-          "Transaction succeeded, but the OwnershipTransferred Event was not found";
-      }
-
-      onTransferComplete({ hash, warning: warningMessage });
+      // DB
+      await insertClientActivity({
+        contractAddress: contractAddress,
+        evidenceId: evidenceId,
+        actor: account,
+        type: "transfer",
+        txHash: txHash,
+        from: account,
+        to: nextOwner,
+      });
     } catch (err) {
       console.error("Transaction failed:", err);
+      //todo fix checking for errors
       if (err instanceof ContractFunctionRevertedError) {
         const errorName = err.shortMessage
           .split("\n")[0]
@@ -152,9 +156,16 @@ export default function TransferOwnershipForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="p-6 rounded-sm bg-green-50 border-2 border-green-700 text-green-800 space-y-3"
+      className={`p-6 rounded-sm bg-green-50 border-2 ${!error ? "border-green-700" : "border-red-500"} text-green-800 space-y-3`}
     >
       <h2 className="text-xl font-bold">Transfer Ownership</h2>
+      <div className="h-3">
+        {error && (
+          <span className="ml-1 font-mono block text-md text-red-700 leading-none">
+            {error}
+          </span>
+        )}
+      </div>
       <Input
         label="New Owner Address"
         id="newOwnerAddress"

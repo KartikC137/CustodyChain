@@ -1,6 +1,13 @@
 "use client";
 
-import { type ReactNode, useCallback, useEffect, useState } from "react";
+import {
+  createContext,
+  useContext,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useState,
+} from "react";
 import {
   type Address,
   type Chain,
@@ -13,10 +20,6 @@ import {
   type WalletClient,
 } from "viem";
 import { anvil, sepolia } from "viem/chains";
-import {
-  Web3Context,
-  type Web3ContextType,
-} from "../../lib/contexts/web3/Web3Context";
 
 declare global {
   interface Window {
@@ -24,16 +27,27 @@ declare global {
   }
 }
 
-// finds supported chain by viem, currently only test chains enabled
-const supportedChains: Record<number, Chain> = {
-  [anvil.id]: anvil,
-  [sepolia.id]: sepolia,
-};
+interface Web3ContextType {
+  isLoading: boolean;
+  account: Address | null;
+  chain: Chain | undefined;
+  walletClient: WalletClient | null;
+  publicClient: PublicClient | null;
+  connectWallet: () => Promise<void>;
+}
+
+const Web3Context = createContext<Web3ContextType | null>(null);
+
 interface Web3ProviderProps {
   children: ReactNode;
 }
 
-export default function Web3Provider({ children }: Web3ProviderProps) {
+const supportedChains: Record<number, Chain> = {
+  [anvil.id]: anvil,
+  [sepolia.id]: sepolia,
+};
+
+export function Web3Provider({ children }: Web3ProviderProps) {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [account, setAccount] = useState<Address | null>(null);
   const [chain, setChain] = useState<Chain | undefined>(undefined);
@@ -169,4 +183,12 @@ export default function Web3Provider({ children }: Web3ProviderProps) {
   return (
     <Web3Context.Provider value={contextValue}>{children}</Web3Context.Provider>
   );
+}
+
+export function useWeb3() {
+  const context = useContext(Web3Context);
+  if (!context) {
+    throw new Error("useWeb3 must be used within a Web3Provider");
+  }
+  return context;
 }
