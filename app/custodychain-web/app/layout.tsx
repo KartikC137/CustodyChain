@@ -39,14 +39,19 @@ export default function RootLayout({
                 >
                   Custody-Chain
                 </Link>
-                <div className="text-lg text-green-900">
+                <div className="pl-1 text-lg text-green-900">
                   <ConnectWalletButton />
                 </div>
               </div>
               <Navbar />
               <ActivityPanel />
             </div>
-            {children}
+            <div
+              id="evidence-container"
+              className="h-full px-8 pt-8 space-y-5 rounded-md bg-orange-50 border-2 border-orange-700"
+            >
+              {children}
+            </div>
           </ActivityProvider>
         </Web3Provider>
       </body>

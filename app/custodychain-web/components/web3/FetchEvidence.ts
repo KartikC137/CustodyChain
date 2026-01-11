@@ -1,11 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState, useRef } from "react";
-import { type Address, isAddressEqual } from "viem";
+import { type Address, zeroAddress } from "viem";
 import { evidenceAbi } from "../../../lib/contractAbi/chain-of-custody-abi";
 import { evidenceLedgerAbi } from "../../../lib/contractAbi/evidence-ledger-abi";
 import { evidenceLedgerAddress } from "../../../lib/evidence-ledger-address";
 import { useWeb3 } from "../../contexts/web3/Web3Context";
+import { Bytes32, Bytes32Schema } from "@/lib/types/solidity.types";
 
 export interface CustodyRecord {
   owner: Address;
@@ -13,7 +14,7 @@ export interface CustodyRecord {
 }
 
 export interface EvidenceDetails {
-  id: `0x${string}`;
+  id: Bytes32;
   contractAddress: Address;
   creator: Address;
   timeOfCreation: bigint;
@@ -24,7 +25,7 @@ export interface EvidenceDetails {
   timeOfDiscontinuation: bigint;
 }
 
-export default function fetchEvidence(evidenceId: `0x${string}`) {
+export default function fetchEvidence(evidenceId: Bytes32) {
   const { publicClient } = useWeb3();
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -44,8 +45,8 @@ export default function fetchEvidence(evidenceId: `0x${string}`) {
         setIsLoading(false);
         return;
       }
-      if (!idToFetch?.startsWith("0x") || idToFetch.length !== 66) {
-        setError("Please enter a valid bytes32 Evidence ID (0x...).");
+      if (Bytes32Schema.safeParse(idToFetch).success !== true) {
+        setError("Invalid evidence ID.");
         setIsLoading(false);
         return;
       }
@@ -69,12 +70,7 @@ export default function fetchEvidence(evidenceId: `0x${string}`) {
           args: [idToFetch as `0x${string}`],
         })) as Address;
 
-        if (
-          isAddressEqual(
-            contractAddress,
-            "0x0000000000000000000000000000000000000000"
-          )
-        ) {
+        if (!contractAddress || contractAddress === zeroAddress) {
           setError(`Evidence with this ID: ${idToFetch} not found.`);
           setIsLoading(false);
           return;
@@ -145,12 +141,11 @@ export default function fetchEvidence(evidenceId: `0x${string}`) {
         });
       } catch (err) {
         console.error("Failed to fetch evidence details:", err);
-        setError("An unknown error occurred. See console for more details");
+        setError("Fetch Evidence: Unknown Error occured.");
       } finally {
         setIsLoading(false);
         if (fetchInFlightRef.current === idToFetch)
           fetchInFlightRef.current = null;
-        setIsLoading(false);
       }
     },
     [publicClient]

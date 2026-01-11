@@ -70,6 +70,8 @@ export default function DiscontinueEvidence({
         functionName: "discontinueEvidence",
         account,
       });
+
+      onDiscontinueEvidenceComplete({ hash: txHash });
       const pendingActivity: ActivityInfoForPanel = {
         id: BigInt("-1"), //Temporary placeholder
         status: "pending",

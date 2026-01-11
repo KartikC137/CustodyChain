@@ -1,52 +1,108 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useActivities } from "@/contexts/ActivitiesContext";
+import { useWeb3 } from "@/contexts/web3/Web3Context";
+import { evidenceLedgerAddress } from "../../../../lib/evidence-ledger-address";
+import { evidenceLedgerAbi } from "../../../../lib/contractAbi/evidence-ledger-abi";
 import Button from "@/components/UI/Button";
 import Input from "@/components/UI/Input";
+import { validHashCheck } from "@/lib/helpers";
+import { insertClientActivity } from "../../../app/api/clientActivity/insertClientActivity";
+import { ActivityInfoForPanel } from "@/lib/types/activity.types";
+import { Address, zeroAddress } from "viem";
 
 export default function FetchEvidenceForm() {
+  const [evidenceId, setEvidenceId] = useState<string>("");
+  const [hashStatus, setHashStatus] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+
   const router = useRouter();
-  const [evidenceIdInput, setEvidenceIdInput] = useState<string>("");
-  const [inputError, setInputError] = useState<string | undefined>(undefined);
+  const { account, publicClient } = useWeb3();
+  const { addPendingActivity } = useActivities();
 
-  const handleSubmit = (event: React.FormEvent) => {
-    event.preventDefault();
-    setInputError(undefined);
-
-    if (!evidenceIdInput.startsWith("0x") || evidenceIdInput.length !== 66) {
-      setInputError("Must be a 0x-prefixed 66-character hex string.");
-      return;
+  useEffect(() => {
+    if (!evidenceId) {
+      setHashStatus("Enter Evidence ID");
+    } else {
+      const hashResult = validHashCheck(evidenceId, "ID");
+      setHashStatus(hashResult);
     }
+  }, [evidenceId]);
 
-    router.push(`/evidence/${evidenceIdInput}`);
-  };
+  async function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    try {
+      setError(null);
+      setIsLoading(true);
+
+      if (!evidenceId) {
+        setError("Evidence ID not required!");
+        return;
+      }
+
+      const contract = await publicClient?.readContract({
+        address: evidenceLedgerAddress,
+        abi: evidenceLedgerAbi,
+        functionName: "getEvidenceContractAddress",
+        args: [evidenceId],
+      });
+
+      if (!contract || contract === zeroAddress) {
+        setError("Evidence with this ID does not exist!");
+        return;
+      }
+      // Panel
+      const pendingActivity: ActivityInfoForPanel = {
+        id: BigInt("-1"),
+        status: "client_only",
+        type: "fetch",
+        actor: account as Address,
+        tx_hash: null,
+        updated_at: null,
+        evidence_id: evidenceId as `0x${string}`,
+      };
+      addPendingActivity(pendingActivity);
+      // DB
+      await insertClientActivity({
+        contractAddress: contract as Address,
+        evidenceId: evidenceId as `0x${string}`,
+        actor: account as Address,
+        type: "fetch",
+        txHash: undefined,
+      });
+      router.push(`/evidence/${evidenceId}`);
+      setEvidenceId("");
+    } catch (err) {
+      console.error("Fetch Evidence Form error:", err);
+      setError("Unknown error occured. Check console for details.");
+    } finally {
+      setIsLoading(false);
+    }
+  }
 
   return (
     <div
-      className={`p-10 w-200 rounded-md border-2 bg-green-50 ${!inputError ? "border-green-700" : "border-red-500"}`}
+      className={`p-10 w-full rounded-md border-2  ${error ? "border-red-600 bg-red-50" : "bg-green-50 border-green-700"}`}
     >
-      <p className="mb-2 font-sans font-[400] text-5xl text-orange-700">
+      <p className="font-sans font-[400] text-5xl text-orange-700">
         Fetch Evidence
       </p>
-      <form onSubmit={handleSubmit} className="grid gap-3">
-        <div className="h-5">
-          {inputError && (
-            <span className="ml-1 block text-xl text-red-700 leading-none">
-              {inputError}
-            </span>
-          )}
+      <form onSubmit={handleSubmit} className="max-w-[800px] grid gap-3">
+        <div className="pl-1 pt-1 font-mono font-semibold text-2xl text-red-600">
+          {error}
         </div>
         <Input
-          id="evidenceIdInput"
-          label="Enter Evidence ID"
+          id="evidenceId"
+          label={`${hashStatus ? (hashStatus === "valid" ? "Evidence ID" : hashStatus) : "Enter Evidence ID"}`}
+          labelStyle={`text-xl font-medium ${hashStatus === "valid" ? "text-green-900" : "text-orange-700"}`}
           type="text"
-          value={evidenceIdInput}
+          value={evidenceId}
           onChange={(e) => {
-            setEvidenceIdInput(e.target.value);
-          }}
-          onClick={() => {
-            setInputError(undefined);
+            setEvidenceId(e.target.value);
+            setError(null);
           }}
           placeholder="0x..."
           required
@@ -54,7 +110,9 @@ export default function FetchEvidenceForm() {
         <Button
           type="submit"
           variant="primary"
+          isLoading={isLoading}
           loadingText="Fetching Evidence Details..."
+          disabled={!!error || !evidenceId || hashStatus !== "valid"}
         >
           Fetch Evidence Details
         </Button>

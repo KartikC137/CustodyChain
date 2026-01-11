@@ -70,7 +70,7 @@ export interface ActivityInfoForPanel {
   id: bigint;
   type: ActivityType;
   status: ActivityStatus;
-  tx_hash: Bytes32;
+  tx_hash: Bytes32 | null;
   from_addr?: Address;
   to_addr?: Address;
   updated_at: Date | null;

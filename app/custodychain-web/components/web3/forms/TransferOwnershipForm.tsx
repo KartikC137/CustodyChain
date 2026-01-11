@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { type Address, ContractFunctionRevertedError, isAddress } from "viem";
 import Button from "@/components/UI/Button";
 import Input from "@/components/UI/Input";
@@ -9,6 +9,7 @@ import { useWeb3 } from "@/contexts/web3/Web3Context";
 import { useActivities } from "@/contexts/ActivitiesContext";
 import { insertClientActivity } from "@/app/api/clientActivity/insertClientActivity";
 import { ActivityInfoForPanel } from "@/lib/types/activity.types";
+import { validAddressCheck } from "@/lib/helpers";
 
 interface TransferOwnershipFormProps {
   contractAddress: Address;
@@ -35,15 +36,25 @@ export default function TransferOwnershipForm({
   const { addPendingActivity } = useActivities();
 
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [nextOwner, setNextOwner] = useState<Address | "">("");
+  const [nextOwner, setNextOwner] = useState<string | "">("");
 
-  const [error, setError] = useState<string | undefined>(undefined);
-  const [txHash, setTxHash] = useState<string | null>(null);
+  const [inputStatus, setInputStatus] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   let errorMessage: string;
 
+  useEffect(() => {
+    if (!nextOwner) {
+      setInputStatus("Enter New Owner address");
+    } else {
+      const addressResult = validAddressCheck(nextOwner);
+      setInputStatus(addressResult);
+    }
+  }, [nextOwner]);
+
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
+    setError(null);
 
     if (!publicClient || !walletClient || !account || !chain) {
       errorMessage = "Please connect your wallet first.";
@@ -72,25 +83,13 @@ export default function TransferOwnershipForm({
     }
 
     if (account.toLowerCase() === nextOwner.toLowerCase()) {
-      setError("You are the Current Owner");
+      setError("You are the Current Owner!");
       return;
     }
 
     setIsLoading(true);
 
     try {
-      const _currentOwner = await publicClient.readContract({
-        address: contractAddress,
-        abi: evidenceAbi,
-        functionName: "getCurrentOwner",
-        args: [],
-      });
-
-      if (_currentOwner === account) {
-        setError("You the current owner!");
-        return;
-      }
-
       const txHash = await walletClient.writeContract({
         address: contractAddress,
         chain: chain,
@@ -101,7 +100,7 @@ export default function TransferOwnershipForm({
         gas: 1_200_000n,
       });
 
-      setTxHash(txHash);
+      onTransferComplete({ hash: txHash });
 
       const pendingActivity: ActivityInfoForPanel = {
         id: BigInt("-1"), //Temporary placeholder
@@ -146,7 +145,7 @@ export default function TransferOwnershipForm({
       } else {
         errorMessage = "An unexpected error occured. See console for details.";
       }
-
+      setError(errorMessage);
       onTransferComplete({ error: errorMessage });
     } finally {
       setIsLoading(false);
@@ -156,22 +155,24 @@ export default function TransferOwnershipForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className={`p-6 rounded-sm bg-green-50 border-2 ${!error ? "border-green-700" : "border-red-500"} text-green-800 space-y-3`}
+      className={`p-6 rounded-sm bg-green-50 border-2 rounded-md border-2  ${error ? "border-red-600 bg-red-50" : "bg-green-50 border-green-700"}`}
     >
-      <h2 className="text-xl font-bold">Transfer Ownership</h2>
-      <div className="h-3">
-        {error && (
-          <span className="ml-1 font-mono block text-md text-red-700 leading-none">
-            {error}
-          </span>
-        )}
+      <h2 className="font-sans font-[600] text-2xl text-orange-700">
+        Transfer Ownership
+      </h2>
+      <div className="pl-1 pt-1 font-mono font-semibold text-lg text-red-600">
+        {error}
       </div>
       <Input
-        label="New Owner Address"
         id="newOwnerAddress"
+        label={`${inputStatus ? (inputStatus === "valid" ? "Next Owner address" : inputStatus) : "Enter Next Owner address"}`}
+        labelStyle={`text-md font-semibold ${inputStatus === "valid" ? "text-green-900" : "text-orange-700"}`}
         type="text"
-        value={nextOwner as Address}
-        onChange={(e) => setNextOwner(e.target.value as Address)}
+        value={nextOwner}
+        onChange={(e) => {
+          setNextOwner(e.target.value);
+          setError(null);
+        }}
         placeholder="0x..."
         required
       />
@@ -180,6 +181,8 @@ export default function TransferOwnershipForm({
         variant="warning"
         isLoading={isLoading}
         loadingText="Transferring Ownership..."
+        className="mt-3"
+        disabled={!!error || !nextOwner || inputStatus !== "valid"}
       >
         Transfer Ownership
       </Button>

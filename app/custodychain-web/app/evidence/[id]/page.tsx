@@ -1,5 +1,4 @@
 "use client";
-
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import type { Address } from "viem";
@@ -11,6 +10,7 @@ import TransferOwnershipForm, {
   type TransferResult,
 } from "@/components/web3/forms/TransferOwnershipForm";
 import { useWeb3 } from "@/contexts/web3/Web3Context";
+import { validHashCheck } from "@/lib/helpers";
 
 const formatTimestamp = (rawTimeStamp: bigint) => {
   if (rawTimeStamp === 0n) return "N/A";
@@ -22,7 +22,16 @@ export default function EvidencePage() {
   const { account } = useWeb3();
   const params = useParams();
   const evidenceIdFromUrl = params.id as `0x${string}`;
+  const idStatus = validHashCheck(evidenceIdFromUrl, "ID");
 
+  if (idStatus !== "valid") {
+    return (
+      <div className="p-6 text-5xl text-center text-red-600">
+        Invalid Evidence ID in URL:<br></br>
+        {idStatus}.
+      </div>
+    );
+  }
   const { isLoading, error, evidenceDetails, fetchEvidenceData } =
     fetchEvidence(evidenceIdFromUrl as `0x${string}`);
 
@@ -31,21 +40,32 @@ export default function EvidencePage() {
   const [discontinueResult, setDiscontinueResult] =
     useState<DiscontinueEvidenceResult>();
 
-  const isValidIdFormat =
-    evidenceIdFromUrl?.startsWith("0x") && evidenceIdFromUrl.length === 66;
-
-  if (!isValidIdFormat) {
+  if (isLoading) {
     return (
-      <div className="p-6 text-center text-red-600">
-        Error: Invalid Evidence ID format in URL.
+      <div className="font-sans fpnt-medium text-center text-5xl text-orange-700">
+        Loading Evidence Details...
       </div>
     );
   }
 
-  if (isLoading) {
+  const evidenceContainerId = document?.getElementById("evidence-container");
+  const archivedStyles = {
+    backgroundColor: "#f9fafb",
+    borderWidth: "2px",
+    borderStyle: "solid",
+    borderColor: "#9ca3af",
+  };
+  const activeStyles = {
+    backgroundColor: "#fff7ed",
+    borderWidth: "2px",
+    borderStyle: "solid",
+    borderColor: "#c2410c",
+  };
+
+  if (!account) {
     return (
-      <div className="font-mono text-center text-xl text-green-700">
-        Loading Evidence Data...
+      <div className="font-mono text-center text-xl text-red-500">
+        Connect Your Wallet to view Evidence
       </div>
     );
   }
@@ -56,45 +76,35 @@ export default function EvidencePage() {
     );
   }
 
-  if (!account) {
-    return (
-      <div className="font-mono text-center text-xl text-red-500">
-        Connect Your Wallet to view Evidence
-      </div>
-    );
-  }
+  // error if required
   if (!evidenceDetails) {
-    return (
-      <div className="font-mono text-center text-xl text-red-500">
-        Couldnt Fetch Evidence Details for ID: {evidenceIdFromUrl}
-      </div>
-    );
+    return;
+  }
+
+  // change box style
+  if (!evidenceDetails.isActive) {
+    Object.assign(evidenceContainerId?.style as any, archivedStyles);
+  } else {
+    Object.assign(evidenceContainerId?.style as any, activeStyles);
   }
 
   function handleTransferComplete(result: TransferResult) {
-    setTransferResult(result);
     if (!result.error) {
       fetchEvidenceData(evidenceIdFromUrl);
+      console.log("handleTransferComplete: refetch details");
     }
-    console.log("Transfer Result:", transferResult);
+    setTransferResult(result);
   }
 
   function handleEvidenceDiscontinued(result: DiscontinueEvidenceResult) {
-    setDiscontinueResult(result);
     if (!result.error) {
       fetchEvidenceData(evidenceIdFromUrl);
-      console.log("Discontinue Result:", discontinueResult);
     }
+    setDiscontinueResult(result);
   }
 
   return (
-    <div
-      className={`h-full px-8 pt-8 space-y-5 rounded-md ${
-        evidenceDetails.isActive
-          ? "bg-orange-50 border-2 border-orange-700"
-          : "bg-gray-50 border-2 border-gray-400"
-      }`}
-    >
+    <div className="space-y-4">
       {/* Evidence Details */}
       <div className="space-y-5">
         <p
