@@ -1,6 +1,6 @@
 "use server";
 
-import { query } from "../../../lib/db";
+import { query } from "../../../config/db";
 import { Address } from "viem";
 import {
   type ActivityRow,

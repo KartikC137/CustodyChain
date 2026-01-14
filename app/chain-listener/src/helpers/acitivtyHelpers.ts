@@ -1,7 +1,7 @@
 import { PoolClient } from "pg";
-import { query } from "../db.js";
+import { query } from "../config/db.js";
 import { logger } from "../logger.js";
-import { getIO } from "../socket.js";
+import { getIO } from "../config/socket.js";
 
 // for client activities only.
 export async function updateActivityForClient(

@@ -1,7 +1,7 @@
 "use client";
 
-import Button from "@/components/UI/Button";
-import { useWeb3 } from "@/contexts/web3/Web3Context";
+import Button from "@/lib/UI/Button";
+import { useWeb3 } from "@/app/contexts/web3/Web3Context";
 
 export default function ConnectWalletButton() {
   const { chain, isLoading, account, connectWallet } = useWeb3();

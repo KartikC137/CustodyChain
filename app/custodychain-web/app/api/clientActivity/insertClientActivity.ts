@@ -9,7 +9,7 @@ import {
   ActivityStatus,
 } from "@/lib/types/activity.types";
 import { z } from "zod";
-import { query } from "../../../lib/db";
+import { query } from "../../../config/db";
 import { PoolClient } from "pg";
 
 // TODO: maybe remove return of activity id

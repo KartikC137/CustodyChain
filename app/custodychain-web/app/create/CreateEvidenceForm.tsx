@@ -1,12 +1,12 @@
 "use client";
 
-import Button from "@/components/UI/Button";
-import Input from "@/components/UI/Input";
-import { evidenceLedgerAbi } from "../../../../lib/contractAbi/evidence-ledger-abi";
-import { evidenceLedgerAddress } from "../../../../lib/evidence-ledger-address";
+import Button from "@/lib/UI/Button";
+import Input from "@/lib/UI/Input";
+import { evidenceLedgerAbi } from "../../../lib/contractAbi/evidence-ledger-abi";
+import { evidenceLedgerAddress } from "../../../lib/evidence-ledger-address";
 import { useEffect, useState } from "react";
-import { useWeb3 } from "@/contexts/web3/Web3Context";
-import { useActivities } from "@/contexts/ActivitiesContext";
+import { useWeb3 } from "../contexts/web3/Web3Context";
+import { useActivities } from "../contexts/ActivitiesContext";
 import {
   encodePacked,
   keccak256,
@@ -15,7 +15,7 @@ import {
   UserRejectedRequestError,
   BaseError,
 } from "viem";
-import { insertClientActivity } from "../../../app/api/clientActivity/insertClientActivity";
+import { insertClientActivity } from "../api/clientActivity/insertClientActivity";
 import { ActivityInfoForPanel } from "@/lib/types/activity.types";
 import { validHashCheck } from "@/lib/helpers";
 import { isValidDesc } from "@/lib/helpers";

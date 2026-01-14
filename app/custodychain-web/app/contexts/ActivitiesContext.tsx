@@ -1,5 +1,5 @@
 "use client";
-import { getSocket } from "@/lib/socket";
+import { getSocket } from "@/config/socket";
 import {
   createContext,
   useContext,
@@ -8,7 +8,7 @@ import {
   ReactNode,
   useCallback,
 } from "react";
-import { ActivityInfoForPanel } from "../lib/types/activity.types";
+import { ActivityInfoForPanel } from "../../lib/types/activity.types";
 import { useWeb3 } from "./web3/Web3Context";
 import { fetchActivitiesForPanel } from "@/app/api/clientActivity/fetchActivities";
 

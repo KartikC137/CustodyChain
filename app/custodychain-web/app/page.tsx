@@ -1,5 +1,4 @@
-// import FetchedEvidenceHistory from "@/components/layout/FetchEvidenceHistory";
-import FetchEvidenceForm from "@/components/web3/forms/FetchEvidenceForm";
+import FetchEvidenceForm from "./components/web3/FetchEvidenceForm";
 
 export default function Home() {
   return <FetchEvidenceForm />;

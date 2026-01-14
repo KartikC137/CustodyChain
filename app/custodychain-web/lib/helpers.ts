@@ -1,5 +1,11 @@
 import { AddressSchema, Bytes32Schema } from "./types/solidity.types";
 
+export const formatTimestamp = (rawTimeStamp: bigint) => {
+  if (rawTimeStamp === 0n) return "N/A";
+  const date = new Date(Number(rawTimeStamp) * 1000);
+  return date.toLocaleString();
+};
+
 // check if specific hash is valid and return a full warning/status
 // maybe use custom zod errors
 export function validHashCheck(hash: string, text: "Metadata Hash" | "ID") {

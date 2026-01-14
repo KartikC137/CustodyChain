@@ -2,14 +2,14 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { useActivities } from "@/contexts/ActivitiesContext";
-import { useWeb3 } from "@/contexts/web3/Web3Context";
+import { useActivities } from "@/app/contexts/ActivitiesContext";
+import { useWeb3 } from "@/app/contexts/web3/Web3Context";
 import { evidenceLedgerAddress } from "../../../../lib/evidence-ledger-address";
 import { evidenceLedgerAbi } from "../../../../lib/contractAbi/evidence-ledger-abi";
-import Button from "@/components/UI/Button";
-import Input from "@/components/UI/Input";
+import Button from "@/lib/UI/Button";
+import Input from "@/lib/UI/Input";
 import { validHashCheck } from "@/lib/helpers";
-import { insertClientActivity } from "../../../app/api/clientActivity/insertClientActivity";
+import { insertClientActivity } from "@/app/api/clientActivity/insertClientActivity";
 import { ActivityInfoForPanel } from "@/lib/types/activity.types";
 import { Address, zeroAddress } from "viem";
 

@@ -1,13 +1,14 @@
 import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
-import { isAddress, type Address, type Chain } from "viem";
+import { type Chain } from "viem";
 import { anvil, sepolia } from "viem/chains";
+import { evidenceLedgerAddress } from "../../../lib/evidence-ledger-address.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const envPath = path.resolve(__dirname, "../.env");
+const envPath = path.resolve(__dirname, "../../.env");
 const result = dotenv.config({ path: envPath });
 if (result.error) {
   const alternatePath = path.resolve(process.cwd(), "../chain-listener/.env");
@@ -21,12 +22,10 @@ export function requireEnv(name: string): string {
   }
   return value.trim();
 }
-const ledgerAddress = requireEnv("LEDGER_CONTRACT_ADDRESS");
-if (!isAddress(ledgerAddress)) {
-  throw new Error(`Config: Invalid LEDGER_CONTRACT_ADDRESS: ${ledgerAddress}`);
-}
 
-const LEDGER_CONTRACT_ADDRESS = ledgerAddress as Address;
+if (!evidenceLedgerAddress) {
+  throw new Error(`Config: Missing Evidence Ledger Address`);
+}
 
 const preferSepoliaRpc =
   !!process.env.SEPOLIA_RPC_URL && process.env.SEPOLIA_RPC_URL.trim() !== "";
@@ -47,6 +46,6 @@ export const config = {
   RPC_URL,
   DATABASE_URL: requireEnv("DATABASE_URL"),
   CONFIRMATIONS: Number(process.env.CONFIRMATIONS ?? 2),
-  LEDGER_CONTRACT_ADDRESS,
+  LEDGER_CONTRACT_ADDRESS: evidenceLedgerAddress,
   BATCH_SIZE: Number(process.env.BATCH_SIZE ?? 10),
 };

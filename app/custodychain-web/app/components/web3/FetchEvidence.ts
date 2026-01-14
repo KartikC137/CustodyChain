@@ -2,30 +2,14 @@
 
 import { useCallback, useEffect, useState, useRef } from "react";
 import { type Address, zeroAddress } from "viem";
-import { evidenceAbi } from "../../../lib/contractAbi/chain-of-custody-abi";
-import { evidenceLedgerAbi } from "../../../lib/contractAbi/evidence-ledger-abi";
-import { evidenceLedgerAddress } from "../../../lib/evidence-ledger-address";
+import { evidenceAbi } from "../../../../lib/contractAbi/chain-of-custody-abi";
+import { evidenceLedgerAbi } from "../../../../lib/contractAbi/evidence-ledger-abi";
+import { evidenceLedgerAddress } from "../../../../lib/evidence-ledger-address";
 import { useWeb3 } from "../../contexts/web3/Web3Context";
 import { Bytes32, Bytes32Schema } from "@/lib/types/solidity.types";
+import { EvidenceDetails, CustodyRecord } from "@/lib/types/evidence.types";
 
-export interface CustodyRecord {
-  owner: Address;
-  timestamp: bigint;
-}
-
-export interface EvidenceDetails {
-  id: Bytes32;
-  contractAddress: Address;
-  creator: Address;
-  timeOfCreation: bigint;
-  currentOwner: Address;
-  description: string;
-  chainOfCustody: CustodyRecord[];
-  isActive: boolean;
-  timeOfDiscontinuation: bigint;
-}
-
-export default function fetchEvidence(evidenceId: Bytes32) {
+export default function useFetchEvidence(evidenceId: Bytes32) {
   const { publicClient } = useWeb3();
 
   const [isLoading, setIsLoading] = useState<boolean>(true);

@@ -1,28 +1,25 @@
 "use client";
 
+import Button from "@/lib/UI/Button";
+import Input from "@/lib/UI/Input";
 import { useState, useEffect } from "react";
-import { type Address, ContractFunctionRevertedError, isAddress } from "viem";
-import Button from "@/components/UI/Button";
-import Input from "@/components/UI/Input";
-import { evidenceAbi } from "../../../../lib/contractAbi/chain-of-custody-abi";
-import { useWeb3 } from "@/contexts/web3/Web3Context";
-import { useActivities } from "@/contexts/ActivitiesContext";
+import { useWeb3 } from "@/app/contexts/web3/Web3Context";
+import { useActivities } from "@/app/contexts/ActivitiesContext";
+import { ContractFunctionRevertedError } from "viem";
+import { Address } from "@/lib/types/solidity.types";
+import { evidenceAbi } from "../../../../../lib/contractAbi/chain-of-custody-abi";
 import { insertClientActivity } from "@/app/api/clientActivity/insertClientActivity";
 import { ActivityInfoForPanel } from "@/lib/types/activity.types";
 import { validAddressCheck } from "@/lib/helpers";
+import { Bytes32 } from "@/lib/types/solidity.types";
+import { EvidenceManagementResult } from "../EvidenceManager";
 
 interface TransferOwnershipFormProps {
   contractAddress: Address;
   isActive: boolean;
   currentOwner: Address;
-  evidenceId: `0x${string}`;
-  onTransferComplete: (result: TransferResult) => void;
-}
-
-export interface TransferResult {
-  hash?: string;
-  warning?: string;
-  error?: string;
+  evidenceId: Bytes32;
+  onTransferComplete: (result: EvidenceManagementResult) => void;
 }
 
 export default function TransferOwnershipForm({
@@ -68,16 +65,12 @@ export default function TransferOwnershipForm({
       return;
     }
 
-    if (!nextOwner || !isAddress(nextOwner)) {
+    if (!nextOwner) {
       setError("Please enter a valid Ethereum address. (Begin with 0x)");
       return;
     }
 
-    if (
-      !currentOwner ||
-      !isAddress(currentOwner) ||
-      account.toLowerCase() !== currentOwner.toLowerCase()
-    ) {
+    if (!currentOwner || account.toLowerCase() !== currentOwner.toLowerCase()) {
       setError("Only Current Owner Can Transfer Ownership");
       return;
     }
@@ -91,7 +84,7 @@ export default function TransferOwnershipForm({
 
     try {
       const txHash = await walletClient.writeContract({
-        address: contractAddress,
+        address: contractAddress as `0x${string}}`,
         chain: chain,
         abi: evidenceAbi,
         functionName: "transferOwnership",

@@ -1,26 +1,23 @@
 "use client";
 
+import Button from "@/lib/UI/Button";
+import { evidenceAbi } from "../../../../../lib/contractAbi/chain-of-custody-abi";
 import { useState } from "react";
-import { type Address, ContractFunctionRevertedError, isAddress } from "viem";
-import Button from "@/components/UI/Button";
-import { evidenceAbi } from "../../../../lib/contractAbi/chain-of-custody-abi";
-import { useWeb3 } from "@/contexts/web3/Web3Context";
-import { useActivities } from "@/contexts/ActivitiesContext";
+import { useWeb3 } from "@/app/contexts/web3/Web3Context";
+import { useActivities } from "@/app/contexts/ActivitiesContext";
+import { ContractFunctionRevertedError } from "viem";
+import { Address } from "@/lib/types/solidity.types";
 import { insertClientActivity } from "@/app/api/clientActivity/insertClientActivity";
 import { ActivityInfoForPanel } from "@/lib/types/activity.types";
+import { Bytes32 } from "@/lib/types/solidity.types";
+import { EvidenceManagementResult } from "../EvidenceManager";
 
 interface DiscontinueEvidenceProps {
   contractAddress: Address;
-  evidenceId: `0x${string}`;
+  evidenceId: Bytes32;
   isActive: boolean;
   creator: Address;
-  onDiscontinueEvidenceComplete: (result: DiscontinueEvidenceResult) => void;
-}
-
-export interface DiscontinueEvidenceResult {
-  hash?: string;
-  warning?: string;
-  error?: string;
+  onDiscontinueEvidenceComplete: (result: EvidenceManagementResult) => void;
 }
 
 export default function DiscontinueEvidence({
@@ -50,11 +47,7 @@ export default function DiscontinueEvidence({
       return;
     }
 
-    if (
-      !creator ||
-      !isAddress(creator) ||
-      account.toLowerCase() !== creator.toLowerCase()
-    ) {
+    if (!creator || account.toLowerCase() !== creator.toLowerCase()) {
       errorMessage = "Only Creator Can Discontinue Evidence";
       onDiscontinueEvidenceComplete({ error: errorMessage });
       return;
@@ -64,7 +57,7 @@ export default function DiscontinueEvidence({
 
     try {
       const txHash = await walletClient.writeContract({
-        address: contractAddress,
+        address: contractAddress as `0x${string}`,
         chain: chain,
         abi: evidenceAbi,
         functionName: "discontinueEvidence",

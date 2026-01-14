@@ -1,21 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { useWeb3 } from "@/contexts/web3/Web3Context";
+import { useWeb3 } from "@/app/contexts/web3/Web3Context";
 import { useActivities } from "../../contexts/ActivitiesContext";
-import { ActivityInfoForPanel } from "../../lib/types/activity.types";
+import { ActivityInfoForPanel } from "../../../lib/types/activity.types";
 
 export default function ActivityPanel() {
   const { account } = useWeb3();
   const { activities, isLoadingActivities } = useActivities();
 
   return (
-    <div className="rounded-md bg-orange-50 border-2 border-orange-700">
-      <p className="p-3 rounded-t-md font-sans font-[500] text-2xl text-orange-900 bg-orange-100 border-b-2 border-orange-700">
+    <div className="relative max-h-[686px] rounded-md bg-orange-50 border-2 border-orange-700">
+      <div className="absolute p-3 top-0 right-0 left-0 backdrop-blur-xs bg-orange-100/75 rounded-t-md font-sans font-[500] text-2xl text-orange-900 border-b-2 border-orange-700">
         Activity:
-      </p>
+      </div>
 
-      <div className="p-3 max-h-[620px] overflow-y-auto">
+      <div className="h-full p-3 pt-[65px] overflow-y-auto">
         {!account ? (
           <p className="text-center text-sm text-gray-500 p-4">
             Connect your wallet to see activity.

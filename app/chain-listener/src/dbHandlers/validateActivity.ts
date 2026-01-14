@@ -1,10 +1,8 @@
-import { publicClient } from "../web3config.js";
+import { publicClient } from "../config/web3config.js";
 import { logger } from "../logger.js";
 import { updateActivityForClient } from "../helpers/acitivtyHelpers.js";
 
-// TODO: additional transfer and discontinue checks imminent, to make validator's task easier
-
-export async function dispatchActivity(
+export async function validateActivity(
   activityId: bigint,
   txHash: `0x${string}` | null,
   blockNumber: bigint | null

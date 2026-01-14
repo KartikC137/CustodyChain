@@ -1,4 +1,4 @@
-import { query } from "../../lib/db";
+import { query } from "../../config/db";
 import { Address } from "@/lib/types/solidity.types";
 
 interface UpsertAccountParams {

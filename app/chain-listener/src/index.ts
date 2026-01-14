@@ -1,9 +1,9 @@
-import { config } from "./config.js";
+import { config } from "./config/config.js";
 import { logger } from "./logger.js";
 import { createServer } from "node:http";
-import { initSocket } from "./socket.js";
+import { initSocket } from "./config/socket.js";
 import { Client } from "pg";
-import { dispatchActivity } from "./dispatchers/dispatchActivity.js";
+import { validateActivity } from "./dbHandlers/validateActivity.js";
 
 const httpServer = createServer();
 initSocket(httpServer);
@@ -34,7 +34,7 @@ async function main() {
         `New Activity Detected ID: ${activityId} | Hash: ${txHash} | Block: ${blockNumber}`
       );
       try {
-        await dispatchActivity(activityId, txHash, blockNumber);
+        await validateActivity(activityId, txHash, blockNumber);
       } catch (err) {
         logger.error("Error processing notification payload:", err);
       }
