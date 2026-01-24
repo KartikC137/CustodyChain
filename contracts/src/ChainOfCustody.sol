@@ -78,7 +78,8 @@ contract Evidence {
         bytes32 _evidenceId,
         address _creator,
         address _initialOwner,
-        string memory _description
+        string memory _description,
+        uint256 _timeOfCreation
     ) {
         require(_nonce > 0, "Invalid Nonce. Should be greater than 0.");
         if (msg.sender != _evidenceLedgerAddress) {
@@ -99,7 +100,7 @@ contract Evidence {
         ORIGINAL_EVIDENCE_LEDGER_ADDRESS = _evidenceLedgerAddress;
         CREATOR = _creator;
         owner = CREATOR;
-        TIME_OF_CREATION = block.timestamp;
+        TIME_OF_CREATION = _timeOfCreation;
         chainOfCustody.push(CustodyRecord({owner: _creator, timestamp: TIME_OF_CREATION}));
         EVIDENCE_ID = _evidenceId;
         description = _description;

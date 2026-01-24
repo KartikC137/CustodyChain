@@ -1,0 +1,17 @@
+{
+  "name": "custodychain_web_app",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "chain-listener",
+    "custodychain-web"
+  ],
+  "scripts": {
+    "start": "concurrently \"npm start --workspace=chain-listener\" \"npm start --workspace=custodychain-web\"",
+    "dev": "concurrently \"../DevFiles/DeployEmptyEvidenceLedger.sh\" \"npm run dev --workspace=chain-listener\" \"npm run dev --workspace=custodychain-web\"",
+    "build": "npm run build --workspace=custodychain-web && npm run build --workspace=chain-listener"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}
