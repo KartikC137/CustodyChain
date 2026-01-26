@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { CustodyRecord } from "@/src/lib/types/evidence.types";
-import { formatTimestamp } from "@/src/lib/util/helpers";
 
 interface ChainOfCustodyViewerProps {
   chainOfCustody: CustodyRecord[];
@@ -59,7 +58,7 @@ export default function ChainOfCustodyViewer({
                 >
                   <span className="text-orange-700">{record.owner}</span>{" "}
                   <span className="text-orange-700">
-                    {formatTimestamp(record.timestamp)}
+                    {record.timestamp.toLocaleString()}
                   </span>
                 </li>
               );
@@ -94,7 +93,7 @@ export default function ChainOfCustodyViewer({
                       {index + 1}
                     </div>
                     <time className="text-orange-900 block leading-none">
-                      {formatTimestamp(record.timestamp)}
+                      {record.timestamp.toLocaleString()}
                     </time>
                     <p className="text-orange-900 break-all">{record.owner}</p>
                   </div>

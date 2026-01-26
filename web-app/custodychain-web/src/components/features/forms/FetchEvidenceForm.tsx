@@ -60,6 +60,7 @@ export default function FetchEvidenceForm() {
         status: "client_only",
         type: "fetch",
         actor: account as Address,
+        owner: account as Address,
         tx_hash: null,
         updated_at: null,
         evidence_id: evidenceId as `0x${string}`,

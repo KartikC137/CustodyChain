@@ -1,58 +1,29 @@
 "use client";
 
 import Input from "@/src/components/ui/Input";
-import { useCallback, useEffect, useState } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useWeb3 } from "@/src/context-and-hooks/Web3Context";
-import { fetchEvidencesByFilter } from "@/src/api/evidences/fetchEvidence";
 import { Address } from "@/src/lib/types/solidity.types";
 import {
-  primaryFilterType,
-  secondaryFilterType,
+  StatusFilter,
+  RoleFilter,
+  EvidenceRow,
 } from "@/src/lib/types/evidence.types";
+import { useEvidences } from "@/src/context-and-hooks/EvidencesContext";
 
 export default function MyEvidencePage() {
   const { account } = useWeb3();
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [evidenceDetails, setEvidenceDetails] = useState<any[]>([]);
-  const [primaryFilter, setPrimaryFilter] =
-    useState<primaryFilterType>("active");
-  const [secondaryFilter, setSecondaryFilter] =
-    useState<secondaryFilterType>("created");
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [evidences, setEvidences] = useState<EvidenceRow[] | null>(null);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("active");
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>("created");
 
-  const fetchData = useCallback(
-    async (
-      _primaryFilter: primaryFilterType,
-      _secondaryFilter: secondaryFilterType,
-      _account: Address,
-    ) => {
-      try {
-        const data = await fetchEvidencesByFilter(
-          _account as Address,
-          _primaryFilter,
-          _secondaryFilter,
-        );
-        setEvidenceDetails(data);
-      } catch (error) {
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [],
-  );
-  useEffect(() => {
-    setIsLoading(true);
-    if (account) {
-      fetchData(primaryFilter, secondaryFilter, account);
-      return;
-    } else {
-      setIsLoading(false);
-    }
-  }, [primaryFilter, secondaryFilter, account]);
+  const { allEvidences } = useEvidences();
 
-  console.info(
-    "----------------EVidence dEtails fetched-------------",
-    evidenceDetails,
-  );
+  console.info("All evidences fetched/udpated lalu", {
+    allEvidences,
+  });
   return (
     <div className="flex-none">
       <p className="font-sans font-sans font-[500] text-4xl text-orange-700">
@@ -72,21 +43,31 @@ export default function MyEvidencePage() {
               aria-label="Tabs"
             >
               <button
-                onClick={() => setPrimaryFilter("all")}
+                onClick={() => {
+                  if (statusFilter !== "all") {
+                    setStatusFilter("all");
+                    setEvidences(null);
+                  }
+                }}
                 type="button"
                 className={`py-2 px-3 ${
-                  primaryFilter === "all"
+                  statusFilter === "all"
                     ? "bg-orange-500 font-[600] text-white"
-                    : "=hover:font-[600] hover:bg-orange-200"
+                    : "hover:font-[600] hover:bg-orange-200"
                 }`}
               >
                 ALL
               </button>
               <button
-                onClick={() => setPrimaryFilter("active")}
+                onClick={() => {
+                  if (statusFilter !== "active") {
+                    setStatusFilter("active");
+                    setEvidences(null);
+                  }
+                }}
                 type="button"
                 className={`py-2 px-3 border-x-2 ${
-                  primaryFilter === "active"
+                  statusFilter === "active"
                     ? "bg-orange-500 font-[600] text-white"
                     : "hover:font-[600] hover:bg-orange-200"
                 }`}
@@ -94,10 +75,15 @@ export default function MyEvidencePage() {
                 ACTIVE
               </button>
               <button
-                onClick={() => setPrimaryFilter("discontinued")}
+                onClick={() => {
+                  if (statusFilter !== "discontinued") {
+                    setStatusFilter("discontinued");
+                    setEvidences(null);
+                  }
+                }}
                 type="button"
                 className={`py-2 px-3 ${
-                  primaryFilter === "discontinued"
+                  statusFilter === "discontinued"
                     ? "bg-orange-500 font-[600] text-white"
                     : "hover:font-[600] hover:bg-orange-200"
                 }`}
@@ -111,10 +97,15 @@ export default function MyEvidencePage() {
               aria-label="Tabs"
             >
               <button
-                onClick={() => setSecondaryFilter("all")}
+                onClick={() => {
+                  if (roleFilter !== "all") {
+                    setRoleFilter("all");
+                    setEvidences(null);
+                  }
+                }}
                 type="button"
                 className={`py-2 px-3 ${
-                  secondaryFilter === "all"
+                  roleFilter === "all"
                     ? "bg-orange-500 font-[600] text-white"
                     : "hover:font-[600] hover:bg-orange-200"
                 }`}
@@ -122,10 +113,15 @@ export default function MyEvidencePage() {
                 ALL
               </button>
               <button
-                onClick={() => setSecondaryFilter("created")}
+                onClick={() => {
+                  if (roleFilter !== "created") {
+                    setRoleFilter("created");
+                    setEvidences(null);
+                  }
+                }}
                 type="button"
                 className={`py-2 px-3 border-x-2 ${
-                  secondaryFilter === "created"
+                  roleFilter === "created"
                     ? "bg-orange-500 font-[600] text-white"
                     : "hover:font-[600] hover:bg-orange-200"
                 }`}
@@ -133,10 +129,15 @@ export default function MyEvidencePage() {
                 CREATED
               </button>
               <button
-                onClick={() => setSecondaryFilter("owned")}
+                onClick={() => {
+                  if (roleFilter !== "owned") {
+                    setRoleFilter("owned");
+                    setEvidences(null);
+                  }
+                }}
                 type="button"
                 className={`py-2 px-3 ${
-                  secondaryFilter === "owned"
+                  roleFilter === "owned"
                     ? "bg-orange-500 font-[600] text-white"
                     : "hover:font-[600] hover:bg-orange-200"
                 }`}

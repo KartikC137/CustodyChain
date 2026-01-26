@@ -73,6 +73,7 @@ export default function DiscontinueEvidence({
         status: "pending",
         type: "discontinue",
         actor: account,
+        owner: account,
         tx_hash: txHash,
         updated_at: null,
         evidence_id: evidenceId,

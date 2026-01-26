@@ -27,6 +27,7 @@ export async function upsertAccountInfoForNewActivity(
     );
     return;
   } catch (err) {
-    throw new Error("accoutn udpate failed");
+    console.error("upsertAccountInfoForNewActivity: db error", err);
+    throw new Error("upsert client account: db error");
   }
 }

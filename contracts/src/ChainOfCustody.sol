@@ -45,8 +45,12 @@ contract Evidence {
     //////////////
     // Events  ///
     //////////////
-    event OwnershipTransferred(bytes32 indexed evidenceId, address indexed previousOwner, address indexed newOwner, uint256 timeOfTransfer);
-    event EvidenceDiscontinued(bytes32 indexed evidenceId, address indexed caller, uint256 indexed timeOfDiscontinuation);
+    event OwnershipTransferred(
+        bytes32 indexed evidenceId, address indexed previousOwner, address indexed newOwner, uint256 timeOfTransfer
+    );
+    event EvidenceDiscontinued(
+        bytes32 indexed evidenceId, address indexed caller, address indexed currentOwner, uint256 timeOfDiscontinuation
+    );
 
     //////////////////
     // Modifiers   ///
@@ -108,14 +112,14 @@ contract Evidence {
 
     // External Functions
     function transferOwnership(address newOwner) external onlyIfActive {
-        if(msg.sender == newOwner) revert Error_SelfTransferIsNotAllowed();
+        if (msg.sender == newOwner) revert Error_SelfTransferIsNotAllowed();
         _transferOwnership(msg.sender, newOwner);
         emit OwnershipTransferred(EVIDENCE_ID, msg.sender, owner, block.timestamp);
     }
 
     function discontinueEvidence() external onlyIfActive {
         _discontinueEvidence();
-        emit EvidenceDiscontinued(EVIDENCE_ID, msg.sender, block.timestamp);
+        emit EvidenceDiscontinued(EVIDENCE_ID, msg.sender, owner, block.timestamp);
     }
 
     // Private & Internal Functions View function
@@ -130,7 +134,7 @@ contract Evidence {
     }
 
     // Public & External Functions View Functions
-    function getNonce() external view returns(uint256) {
+    function getNonce() external view returns (uint256) {
         return NONCE;
     }
 

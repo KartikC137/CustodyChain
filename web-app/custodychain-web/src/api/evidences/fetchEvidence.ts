@@ -1,14 +1,14 @@
 "use server";
 
 import { query } from "@/src/config/db";
-import { EvidenceDetails } from "@/src/lib/types/evidence.types";
+import { EvidenceDetails, EvidenceRow } from "@/src/lib/types/evidence.types";
 import { Address, Bytes32 } from "@/src/lib/types/solidity.types";
 import { parseChainOfCustody } from "@/src/lib/util/helpers";
-import {
-  primaryFilterType,
-  secondaryFilterType,
-} from "@/src/lib/types/evidence.types";
+import { StatusFilter, RoleFilter } from "@/src/lib/types/evidence.types";
 
+/**
+ * @returns Formatted data from db of type EvidenceDetails
+ */
 export async function fetchSingleEvidence(
   id: Bytes32,
 ): Promise<EvidenceDetails> {
@@ -34,100 +34,70 @@ export async function fetchSingleEvidence(
   };
 }
 
+/**
+ *
+ * @param account
+ * @param statusFilter i. active: evidences active only,
+ *                     ii. owned: evidences discontinued/archived only,
+ *                     iii. all: active or discontinued
+ * @param roleFilter i. created: evidences created by account, initially creator == current_owner.
+ *                   ii. owned: evidences owned by account, initially creator == current_owner.
+ *                   iii. all: evidences either owned or created. (all the evidences this account is involved in)
+ * @returns array of evidence details
+ */
 export async function fetchEvidencesByFilter(
   account: Address,
-  primaryFilter: "all" | "active" | "discontinued",
-  secondaryFilter: "all" | "created" | "owned",
-): Promise<any[]> {
-  if (primaryFilter === "all" && secondaryFilter === "all") {
-    return await _fetchAllEvidences(account, "all");
+  status: StatusFilter = "all",
+  role: RoleFilter = "all",
+): Promise<EvidenceRow[]> {
+  const formattedAccount = account.toLowerCase();
+
+  let sql = `
+    SELECT evidence_id, status, description, creator, created_at, current_owner, updated_at
+    FROM evidence
+    WHERE
+  `;
+  const params: any[] = [];
+  let paramIndex = 1;
+
+  if (status !== "all") {
+    sql += ` status = $${paramIndex}`;
+    params.push(status);
+    paramIndex++;
   } else {
-    if (secondaryFilter === "created") {
-      return await _fetchCreatedEvidences(account, primaryFilter);
-    } else if (secondaryFilter === "owned") {
-      return await _fetchOwnedEvidences(account, primaryFilter);
-    } else if (secondaryFilter === "all") {
-      return _fetchAllEvidences(account, primaryFilter);
-    } else {
-      return [];
-    }
+    sql += ` (status = 'active' OR status = 'discontinued')`;
+  }
+
+  if (role === "created") {
+    sql += ` AND creator = $${paramIndex}`;
+    params.push(formattedAccount);
+  } else if (role === "owned") {
+    sql += ` AND current_owner = $${paramIndex}`;
+    params.push(formattedAccount);
+  } else {
+    sql += ` AND (creator = $${paramIndex} OR current_owner = $${paramIndex})`;
+    params.push(formattedAccount);
+  }
+
+  try {
+    const result = await query(sql, params);
+    return result.rows;
+  } catch (error) {
+    console.error("Error fetching evidences:", error);
+    throw new Error("Failed to fetch evidences");
   }
 }
 
-async function _fetchCreatedEvidences(
-  creator: Address,
-  status: primaryFilterType,
-) {
-  if (status === "all") {
-    const result = await query(
-      `
-    SELECT evidence_id, status, description, creator, created_at, current_owner, updated_at
-    FROM evidence
-    WHERE (status = 'active' OR status = 'discontinued') AND creator = $1
+export async function fetchEvidencesByAccount(
+  account: Address,
+): Promise<EvidenceRow[]> {
+  const result = await query(
+    `
+     SELECT evidence_id, status, description, creator, created_at, current_owner, updated_at
+     FROM evidence
+     WHERE creator = $1 OR current_owner = $1
     `,
-      [creator.toLowerCase()],
-    );
-    return result.rows;
-  } else {
-    const result = await query(
-      `
-    SELECT evidence_id, status, description, creator, created_at, current_owner, updated_at
-    FROM evidence
-    WHERE status = $1 AND creator = $2
-    `,
-      [status, creator.toLowerCase()],
-    );
-    return result.rows;
-  }
-}
-
-async function _fetchOwnedEvidences(
-  currentOwner: Address,
-  status: primaryFilterType,
-) {
-  if (status === "all") {
-    const result = await query(
-      `
-    SELECT evidence_id, status, description, creator, created_at, current_owner, updated_at
-    FROM evidence
-    WHERE (status = 'active' OR status = 'discontinued') AND (current_owner = $1 AND creator != $1)
-    `,
-      [currentOwner.toLowerCase()],
-    );
-    return result.rows;
-  } else {
-    const result = await query(
-      `
-    SELECT evidence_id, status, description, creator, created_at, current_owner, updated_at
-    FROM evidence
-    WHERE status = $1 AND (current_owner = $2 AND creator != $2)
-    `,
-      [status, currentOwner.toLowerCase()],
-    );
-    return result.rows;
-  }
-}
-
-async function _fetchAllEvidences(account: Address, status: primaryFilterType) {
-  if (status === "all") {
-    const result = await query(
-      `
-    SELECT evidence_id, status, description, creator, created_at, current_owner, updated_at
-    FROM evidence
-    WHERE (creator = $1 OR current_owner = $1) AND (status = 'active' OR status = 'discontinued')
-    `,
-      [account.toLowerCase()],
-    );
-    return result.rows;
-  } else {
-    const result = await query(
-      `
-    SELECT evidence_id, status, description, creator, created_at, current_owner, updated_at
-    FROM evidence
-    WHERE (creator = $1 OR current_owner = $1) AND status = $2
-    `,
-      [account.toLowerCase(), status],
-    );
-    return result.rows;
-  }
+    [account.toLowerCase()],
+  );
+  return result.rows;
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation"; // can make it run on server remove this
+import { usePathname } from "next/navigation";
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -48,7 +48,7 @@ export default function Navbar() {
             isEvidenceActive ? activeLinkStyle : hoverLinkStyle
           }`}
         >
-          MY EVIDENCE
+          MY EVIDENCES
           {evidenceId && (
             <span className="text-sm">: {evidenceId.slice(0, 20)}...</span>
           )}

@@ -1,9 +1,6 @@
 import { Address, Bytes32 } from "../lib/types/solidity.types.js";
 import { query } from "../config/db.js";
-
-const bigIntToTimeStamp = (rawTimeStamp: bigint) => {
-  return new Date(Number(rawTimeStamp) * 1000);
-};
+import { bigIntToTimeStamp } from "./acitivtyHelpers.js";
 
 /**
  * @param timeOfCreation is bigint to keep custody record consistency and precision.
@@ -17,9 +14,9 @@ export async function insertNewEvidence(
   block: bigint,
   creationTxHash: Bytes32,
   desc: string,
-) {
+): Promise<Date> {
   try {
-    await query(
+    const result = await query(
       `
     INSERT INTO evidence (
       status,
@@ -39,6 +36,7 @@ export async function insertNewEvidence(
     )
     VALUES ('active', $1, $2, $3, $4, $5, $6, now(), $7, $8, $9, $10, $11, ARRAY[ ($4, $12)::custody_record_t ])
     ON CONFLICT (evidence_id) DO NOTHING
+    RETURNING updated_at
     `,
       [
         metadataHash.toLowerCase(),
@@ -55,7 +53,7 @@ export async function insertNewEvidence(
         timeOfCreation,
       ],
     );
-    return;
+    return result.rows[0].updated_at;
   } catch (err) {
     throw new Error("insert evidence failed: db error");
   }
@@ -69,9 +67,9 @@ export async function updateTransferOwnership(
   latestTxHash: Bytes32,
   lastTxBlock: bigint,
   timeOfTransfer: bigint,
-) {
+): Promise<Date> {
   try {
-    await query(
+    const result = await query(
       `
     UPDATE evidence
     SET current_owner = $1,
@@ -80,9 +78,10 @@ export async function updateTransferOwnership(
         updated_at = now(),
         chain_of_custody = array_append(chain_of_custody, ($1, $4)::custody_record_t)
     WHERE evidence_id = $5
+    RETURNING updated_at
     `,
       [
-        currentOwner.toLowerCase(),
+        currentOwner, // already lowercased in parent
         latestTxHash.toLowerCase(),
         lastTxBlock,
         timeOfTransfer,
@@ -90,7 +89,7 @@ export async function updateTransferOwnership(
       ],
     );
 
-    return;
+    return result.rows[0].updated_at;
   } catch (err) {
     throw new Error("update evidence failed: db error");
   }
@@ -101,9 +100,9 @@ export async function updateEvidenceDiscontinued(
   latestTxHash: Bytes32,
   lastTxBlock: bigint,
   timeOfDiscontinuation: bigint,
-) {
+): Promise<Date> {
   try {
-    await query(
+    const result = await query(
       `
     UPDATE evidence 
     SET status = 'discontinued',
@@ -112,6 +111,7 @@ export async function updateEvidenceDiscontinued(
         discontinued_at = $3,
         updated_at = now()
     WHERE evidence_id = $4
+    RETURNING updated_at
     `,
       [
         latestTxHash.toLowerCase(),
@@ -121,7 +121,7 @@ export async function updateEvidenceDiscontinued(
       ],
     );
 
-    return;
+    return result.rows[0].updated_at;
   } catch (err) {
     throw new Error("update evidence failed: db error");
   }

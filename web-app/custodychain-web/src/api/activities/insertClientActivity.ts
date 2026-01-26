@@ -12,9 +12,7 @@ import {
 
 type clientStatus = "client_only" | "pending";
 
-export async function insertClientActivity(
-  input: ActivityInput,
-): Promise<bigint> {
+export async function insertClientActivity(input: ActivityInput) {
   const result = ActivityInputSchema.safeParse(input);
   if (!result.success) {
     throw new Error("invalid activity");
@@ -28,39 +26,35 @@ export async function insertClientActivity(
 
   try {
     await upsertAccountInfoForNewActivity(safeInput.actor, initialType);
-    const activityId = await insertNewActivity(initialStatus, safeInput);
-    if (!activityId) throw new Error("insert activity failed");
-    return activityId;
+    await insertNewActivity(initialStatus, safeInput);
   } catch (err) {
     console.error(
       "insertClientActivity: couldn't insert activity into DB",
       err,
     );
-    throw err;
+    throw new Error("insert pending client activity: db error");
   }
 }
 
 async function insertNewActivity(
   status: clientStatus,
   activityInfo: ActivityInput,
-): Promise<bigint> {
-  let from,
-    to = null;
+) {
+  let to = null;
   if (activityInfo.type === "transfer") {
-    from = activityInfo.from.toLowerCase();
     to = activityInfo.to.toLowerCase();
   }
   const meta = activityInfo.meta ?? {};
   const blockNumber = activityInfo.blockNumber ?? 0n;
 
-  const result = await query(
+  await query(
     `
     INSERT INTO activity (
       contract_address,
       evidence_id,
       actor,
       type,
-      from_addr,
+      owner,
       to_addr,
       status,
       tx_hash,
@@ -70,14 +64,13 @@ async function insertNewActivity(
       updated_at
     )
     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, now(), now())
-    RETURNING id
     `,
     [
       activityInfo.contractAddress.toLowerCase(),
       activityInfo.evidenceId.toLowerCase(),
       activityInfo.actor.toLowerCase(),
       activityInfo.type,
-      from,
+      activityInfo.actor.toLowerCase(),
       to,
       status,
       activityInfo.txHash?.toLowerCase(),
@@ -85,5 +78,4 @@ async function insertNewActivity(
       meta,
     ],
   );
-  return BigInt(result.rows[0].id);
 }

@@ -52,8 +52,9 @@ export default function EvidenceDetails({
         currentOwnerTime={
           evidenceDetails.chainOfCustody[
             evidenceDetails.chainOfCustody.length - 1
-          ].timestamp as bigint
+          ].timestamp
         }
+        timeOfDiscontinuation={evidenceDetails.timeOfDiscontinuation}
       />
       <div
         className={`grid gap-8

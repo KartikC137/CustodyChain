@@ -9,9 +9,10 @@ import { useWeb3 } from "./Web3Context";
 import { Bytes32 } from "@/src/lib/types/solidity.types";
 import { EvidenceDetails, CustodyRecord } from "@/src/lib/types/evidence.types";
 import { fetchSingleEvidence } from "../api/evidences/fetchEvidence";
+import { bigIntToDate } from "../lib/util/helpers";
 
 /**
- * @notice 1. Primarily fetches data from DB but chain of custody requires , fallback is rpc calls to the contract.
+ * @notice Primarily fetches data from DB but chain of custody requires , fallback is rpc calls to the contract.
  */
 export default function useFetchSingleEvidence(evidenceId: Bytes32) {
   const { publicClient } = useWeb3();
@@ -20,9 +21,7 @@ export default function useFetchSingleEvidence(evidenceId: Bytes32) {
   const [error, setError] = useState<string | null>(null);
   const [evidenceDetails, setEvidenceDetails] =
     useState<EvidenceDetails | null>(null);
-  const [dataSource, setDataSource] = useState<"DB" | "BLOCKCHAIN" | null>(
-    null,
-  );
+  const [dataSource, setDataSource] = useState<"DB" | "BLOCKCHAIN">("DB");
 
   const fetchInFlightRef = useRef<string | null>(null);
 
@@ -40,7 +39,6 @@ export default function useFetchSingleEvidence(evidenceId: Bytes32) {
       setEvidenceDetails(null);
 
       try {
-        console.log("Attempting DB fetch...");
         const dbData = await fetchSingleEvidence(idToFetch as `0x${string}`);
 
         if (dbData) {
@@ -125,17 +123,17 @@ export default function useFetchSingleEvidence(evidenceId: Bytes32) {
             functionName: "getTimeOfDiscontinuation",
           }) as Promise<bigint>,
         ]);
-
+        // dates are type bigint (uint) on contract, needs formatting
         setEvidenceDetails({
           id,
           contractAddress,
           creator,
-          timeOfCreation,
+          timeOfCreation: bigIntToDate(timeOfCreation),
           currentOwner,
           description,
           chainOfCustody,
           isActive,
-          timeOfDiscontinuation,
+          timeOfDiscontinuation: bigIntToDate(timeOfDiscontinuation),
         });
         setDataSource("BLOCKCHAIN");
       } catch (err) {

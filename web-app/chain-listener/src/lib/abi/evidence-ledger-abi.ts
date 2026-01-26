@@ -8,7 +8,7 @@ export const event_OwnershipTransferred = parseAbi([
   "event OwnershipTransferred(bytes32 indexed evidenceId, address indexed previousOwner, address indexed newOwner, uint256 timeOfTransfer)",
 ]);
 export const event_EvidenceDiscontinued = parseAbi([
-  "event EvidenceDiscontinued(bytes32 indexed evidenceId, address indexed caller, uint256 indexed timeOfDiscontinuation)",
+  "event EvidenceDiscontinued(bytes32 indexed evidenceId, address indexed caller, address indexed currentOwner, uint256 timeOfDiscontinuation)",
 ]);
 
 export const evidenceLedgerAbi = [

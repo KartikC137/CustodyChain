@@ -101,10 +101,10 @@ export default function TransferOwnershipForm({
         status: "pending",
         type: "transfer",
         actor: account,
+        owner: account,
         tx_hash: txHash,
         updated_at: null,
         evidence_id: evidenceId,
-        from_addr: account,
         to_addr: nextOwner,
       };
       addPendingActivity(pendingActivity);

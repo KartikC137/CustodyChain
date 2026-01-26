@@ -60,7 +60,11 @@ export default function ActivityPanel() {
                     }`}
                   >
                     {/* update the error styles, display errors on hover */}
-                    {activity.type.toUpperCase()}
+                    {activity.actor === account
+                      ? activity.type.toUpperCase()
+                      : activity.type === "discontinue"
+                        ? "RECEIVED:DISCONTINUE"
+                        : "RECEIVED"}
                     {activity.status === "pending"
                       ? ":pending"
                       : activity.status === "failed"
@@ -71,7 +75,7 @@ export default function ActivityPanel() {
                   </span>
 
                   <span className="font-mono text-sm text-orange-800">
-                    {activity.updated_at?.toLocaleTimeString()}
+                    {new Date(activity.updated_at as Date).toLocaleTimeString()}
                   </span>
                 </div>
 
@@ -86,8 +90,15 @@ export default function ActivityPanel() {
 
                 {activity.type === "transfer" && activity.to_addr && (
                   <div className="font-mono text-sm text-orange-800">
-                    To: {activity.to_addr.slice(0, 8)}...
-                    {activity.to_addr.slice(24, 32)}
+                    {activity.actor === account
+                      ? "To: " +
+                        activity.to_addr.slice(0, 8) +
+                        "..." +
+                        activity.to_addr.slice(24, 32)
+                      : "From: " +
+                        activity.actor.slice(0, 8) +
+                        "..." +
+                        activity.actor.slice(24, 32)}
                   </div>
                 )}
               </div>

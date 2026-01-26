@@ -7,15 +7,19 @@ import {
   type ActivityInfoForPanel,
 } from "@/src/lib/types/activity.types";
 
-// basic info
+/**
+ * @todo remove to_addr and prefer owner only
+ * @dev it fetches all the activities where the account is either the actor or to_addr, meaning when actor is the reciever of evidence.
+ * @returns ActivityInfoForPanel[] this type ensures the info is only that required by panel
+ */
 export async function fetchActivitiesForPanel(
   account: Address,
   count: number,
 ): Promise<ActivityInfoForPanel[]> {
   const sql = `
-    SELECT id,type,status,tx_hash,from_addr,to_addr,updated_at,actor,evidence_id
+    SELECT id, type, status, tx_hash, to_addr, updated_at, actor, evidence_id, owner
     FROM activity 
-    WHERE actor = $1
+    WHERE actor = $1 OR to_addr = $1 OR owner = $1
     ORDER BY updated_at DESC 
     LIMIT $2
   `;

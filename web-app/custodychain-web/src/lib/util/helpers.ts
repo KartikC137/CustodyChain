@@ -1,13 +1,10 @@
 import { AddressSchema, Bytes32Schema } from "../types/solidity.types";
 
-export const formatTimestamp = (rawTimeStamp: bigint) => {
-  if (rawTimeStamp === 0n) return "N/A";
-  const date = new Date(Number(rawTimeStamp) * 1000);
-  return date.toLocaleString();
+export const bigIntToDate = (rawTimeStamp: bigint) => {
+  return new Date(Number(rawTimeStamp) * 1000);
 };
 
 export const parseChainOfCustody = (rawChainOfCustody: string) => {
-  // 1. Handle empty/null
   if (!rawChainOfCustody || rawChainOfCustody === "{}") return [];
 
   /**
@@ -18,16 +15,11 @@ export const parseChainOfCustody = (rawChainOfCustody: string) => {
    * \)                  -> Match closing ')'
    */
   const regex = /\((0x[a-fA-F0-9]+),(\d+)\)/g;
-
-  // 2. Extract matches
   const matches = [...rawChainOfCustody.matchAll(regex)];
-
-  // 3. Map to object
   return matches.map((match) => {
     return {
       owner: match[1],
-      // Convert the string digit to a native BigInt (or Number if safe)
-      timestamp: BigInt(match[2]),
+      timestamp: bigIntToDate(BigInt(match[2])),
     };
   });
 };

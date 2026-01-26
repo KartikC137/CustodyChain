@@ -111,12 +111,13 @@ export default function CreateEvidenceForm() {
         args: [_evidenceId],
       })) as Address;
 
-      // Panel
+      // Activity Panel
       const pendingActivity: ActivityInfoForPanel = {
         id: BigInt("-1"),
         status: "pending",
         type: "create",
         actor: account as Address,
+        owner: account as Address,
         tx_hash: txHash,
         updated_at: null,
         evidence_id: _evidenceId,

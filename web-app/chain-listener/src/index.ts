@@ -4,9 +4,33 @@ import { createServer } from "node:http";
 import { initSocket } from "./config/socket.js";
 import { Client } from "pg";
 import { validateActivity } from "./db/validateActivity.js";
+import { Address } from "./lib/types/solidity.types.js";
 
 const httpServer = createServer();
-initSocket(httpServer);
+const io = initSocket(httpServer);
+
+io.on("connection", (socket) => {
+  console.info("-------------New client connected:--------------", socket.id);
+
+  socket.on("connect_account", (accountAddress: Address) => {
+    if (!accountAddress) {
+      return;
+    }
+    const roomName = accountAddress.toLowerCase();
+    socket.join(roomName);
+    console.info(`Socket ${socket.id} joined room: ${roomName}`);
+  });
+  socket.on("disconnect_account", (accountAddress: Address) => {
+    if (!accountAddress) return;
+    const roomName = accountAddress.toLowerCase();
+    socket.leave(roomName);
+    console.info(`Socket ${socket.id} left room: ${roomName}`);
+  });
+
+  socket.on("disconnect", () => {
+    console.log("client disconnected:", socket.id);
+  });
+});
 
 // Separate connection just for listening (LISTEN/NOTIFY needs a dedicated connection)
 const activityPgClient = new Client({
@@ -27,7 +51,6 @@ async function main() {
 
   activityPgClient.on("notification", async (msg) => {
     if (msg.channel === "pending_activity_channel" && msg.payload) {
-      console.log("Activity detected, socket udpate receieved");
       const data = JSON.parse(msg.payload);
       const evidenceId = data.evidenceId;
       const activityId = BigInt(data.id);

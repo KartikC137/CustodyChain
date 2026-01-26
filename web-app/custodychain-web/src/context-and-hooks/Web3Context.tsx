@@ -20,6 +20,7 @@ import {
   type WalletClient,
 } from "viem";
 import { anvil, sepolia } from "viem/chains";
+import { getSocket } from "../config/socket";
 
 declare global {
   interface Window {
@@ -61,6 +62,8 @@ export function Web3Provider({ children }: { children: ReactNode }) {
     return typeof window !== "undefined" ? window.ethereum : undefined;
   }, []);
 
+  const socket = getSocket();
+
   const initializeProvider = useCallback(
     async (connectedAccount: Address) => {
       try {
@@ -91,6 +94,9 @@ export function Web3Provider({ children }: { children: ReactNode }) {
           transport: http(),
         });
 
+        socket.emit("connect_account", connectedAccount);
+        console.log("connect account emitted", connectedAccount);
+
         setWeb3State({
           isLoading: false,
           account: connectedAccount,
@@ -98,12 +104,12 @@ export function Web3Provider({ children }: { children: ReactNode }) {
           walletClient: finalWalletClient,
           publicClient: finalPublicClient,
         });
-
         console.log(
           `Provider initialized on ${currentChain.name} for ${connectedAccount}`,
         );
       } catch (error) {
         console.error("Failed to initialize provider:", error);
+        socket.emit("disconnect_account", connectedAccount);
         setWeb3State((prev) => ({ ...prev, isLoading: false }));
       }
     },
@@ -128,8 +134,8 @@ export function Web3Provider({ children }: { children: ReactNode }) {
     }
   }, [initializeProvider, getProvider]);
 
+  // checks initial connection on mount
   useEffect(() => {
-    // check existing connection faster on reload
     const checkExistingConnection = async () => {
       try {
         const provider = getProvider();
@@ -153,8 +159,15 @@ export function Web3Provider({ children }: { children: ReactNode }) {
     };
 
     checkExistingConnection();
+  }, [initializeProvider, getProvider]);
 
+  // handles account change
+  useEffect(() => {
+    // this is not async cuz functionally it does not matter to await initializeProvider
+    // cuz it has its error handling unless anything runs after it
     const handleAccountsChanged = (accounts: string[]) => {
+      socket.emit("disconnect_account", web3State.account);
+      console.log("disconnect account emitted", web3State.account);
       if (accounts.length > 0) {
         initializeProvider(accounts[0] as Address);
       } else {
@@ -176,7 +189,7 @@ export function Web3Provider({ children }: { children: ReactNode }) {
         provider.removeListener("chainChanged", handleChainChanged);
       }
     };
-  }, [initializeProvider, getProvider]);
+  }, [initializeProvider, getProvider, web3State.account]);
 
   const contextValues: Web3ContextType = {
     ...web3State,

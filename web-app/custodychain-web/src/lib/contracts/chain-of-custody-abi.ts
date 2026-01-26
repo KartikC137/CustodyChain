@@ -132,9 +132,15 @@ export const evidenceAbi = [
         internalType: "address",
       },
       {
+        name: "currentOwner",
+        type: "address",
+        indexed: true,
+        internalType: "address",
+      },
+      {
         name: "timeOfDiscontinuation",
         type: "uint256",
-        indexed: true,
+        indexed: false,
         internalType: "uint256",
       },
     ],

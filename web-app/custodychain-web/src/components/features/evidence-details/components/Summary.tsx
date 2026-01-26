@@ -1,9 +1,4 @@
-import { EvidenceDetailsSummary } from "@/src/lib/types/evidence.types";
-import { formatTimestamp } from "@/src/lib/util/helpers";
-
-interface EvidenceSummaryProps extends EvidenceDetailsSummary {
-  source: "DB" | "BLOCKCHAIN" | null;
-}
+import { EvidenceSummaryType } from "@/src/lib/types/evidence.types";
 
 export default function EvidenceSummary({
   source,
@@ -14,7 +9,8 @@ export default function EvidenceSummary({
   timeOfCreation,
   currentOwner,
   currentOwnerTime,
-}: EvidenceSummaryProps) {
+  timeOfDiscontinuation,
+}: EvidenceSummaryType) {
   return (
     <div className="space-y-5">
       <p
@@ -34,16 +30,14 @@ export default function EvidenceSummary({
           Description: <span className="text-orange-700">{description}</span>
         </p>
         <p>
-          Creator:{" "}
-          <span className="text-orange-700">
-            {creator} : {formatTimestamp(timeOfCreation)}
-          </span>
+          Creator: <span className="text-orange-700">{creator}</span> @{" "}
+          {timeOfCreation.toLocaleString()} to{" "}
+          {!isActive && timeOfDiscontinuation.toLocaleString()}
         </p>
         <p>
           {isActive ? "Current Owner: " : "Last Owner: "}
-          <span className="text-orange-700">
-            {currentOwner} : {formatTimestamp(currentOwnerTime)}
-          </span>
+          <span className="text-orange-700">{currentOwner}</span> @{" "}
+          {currentOwnerTime.toLocaleString()}
         </p>
       </div>
     </div>
