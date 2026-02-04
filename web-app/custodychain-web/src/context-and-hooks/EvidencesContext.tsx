@@ -9,41 +9,40 @@ import {
 } from "react";
 import { fetchEvidencesByAccount } from "../api/evidences/fetchEvidence";
 import { useWeb3 } from "./Web3Context";
-import { EvidenceRow } from "../lib/types/evidence.types";
 import { Bytes32, Address } from "../lib/types/solidity.types";
 import { ActivityTypeType } from "../lib/types/activity.types";
+import { SocketEvidenceDetails } from "../lib/types/socketEvent.types";
 
 type EvidenceContextType = {
-  allEvidences: EvidenceRow[];
-  isLoading: boolean;
+  evidences: SocketEvidenceDetails[];
+  isLoadingEvidences: boolean;
   refreshEvidences: () => void;
+  insertEvidence: (evidence: SocketEvidenceDetails) => void;
   updateEvidence: (
-    id: Bytes32,
+    evidence: SocketEvidenceDetails,
     type: ActivityTypeType,
-    updatedAt: Date,
-    to?: Address,
-    createdAt?: Date,
   ) => void;
-  insertEvidence: (newEvidence: EvidenceRow) => void;
+  removeEvidence: (evidenceId: Bytes32) => void;
 };
 
 const EvidenceContext = createContext<EvidenceContextType | null>(null);
 
 export function EvidenceProvider({ children }: { children: ReactNode }) {
   const { account } = useWeb3();
-  const [allEvidences, setAllEvidences] = useState<EvidenceRow[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [evidences, setEvidences] = useState<SocketEvidenceDetails[]>([]);
+  const [isLoadingEvidences, setIsLoadingEvidences] = useState(false);
 
   const loadData = async () => {
     if (!account) return;
-    setIsLoading(true);
+    setIsLoadingEvidences(true);
     try {
       const data = await fetchEvidencesByAccount(account);
-      setAllEvidences(data);
+      console.info("-------------fetched evidences from DB------------", data);
+      setEvidences(data);
     } catch (e) {
       console.error(e);
     } finally {
-      setIsLoading(false);
+      setIsLoadingEvidences(false);
     }
   };
 
@@ -51,56 +50,65 @@ export function EvidenceProvider({ children }: { children: ReactNode }) {
     loadData();
   }, [account]);
 
-  const insertEvidence = (newEvidence: EvidenceRow) => {
-    setAllEvidences((prev) => [...prev, newEvidence]);
+  const insertEvidence = async (evidence: SocketEvidenceDetails) => {
+    console.info("-----------evidence inserted", evidence);
+    setEvidences((prev) => [evidence, ...prev]);
   };
 
-  const updateEvidence = (
-    id: Bytes32,
+  const updateEvidence = async (
+    evidence: SocketEvidenceDetails,
     type: ActivityTypeType,
-    updatedAt: Date,
-    to?: Address,
   ) => {
+    console.info("-----------updating evidence for", {
+      Type: type,
+      Evidence: evidence,
+    });
     if (type === "transfer") {
-      setAllEvidences((prev) =>
-        prev.map((evidence) => {
-          if (evidence.evidence_id === id) {
-            return {
-              ...evidence,
-              current_owner: to as Address,
-              updated_at: updatedAt,
-            };
-          }
-          return evidence;
-        }),
-      );
+      setEvidences((prev) => {
+        const index = prev.findIndex((e) => e.id === evidence.id);
+        if (index === -1) return prev;
+        const newArray = [...prev];
+        newArray[index] = {
+          ...newArray[index],
+          currentOwner: evidence.currentOwner,
+        };
+        return newArray;
+      });
     } else if (type === "discontinue") {
-      setAllEvidences((prev) =>
-        prev.map((evidence) => {
-          if (evidence.evidence_id === id) {
-            return {
-              ...evidence,
-              status: "discontinued",
-              updated_at: updatedAt,
-            };
-          }
-          return evidence;
-        }),
-      );
+      setEvidences((prev) => {
+        const index = prev.findIndex((e) => e.id === evidence.id);
+        if (index === -1) return prev;
+        const newArray = [...prev];
+        newArray[index] = {
+          ...newArray[index],
+          status: "discontinued",
+        };
+        return newArray;
+      });
     } else {
-      // dont do anything on fetch or create
       return;
     }
+  };
+
+  // only removes evidence if account is not the creator as well
+  const removeEvidence = async (evidenceId: Bytes32) => {
+    console.info("-----------evidence removed", evidenceId);
+    setEvidences((prev) => {
+      const index = prev.findIndex((e) => e.id === evidenceId);
+      if (index === -1) return prev;
+      return [...prev.slice(0, index), ...prev.slice(index + 1)];
+    });
   };
 
   return (
     <EvidenceContext.Provider
       value={{
-        allEvidences,
-        isLoading,
+        evidences,
+        isLoadingEvidences,
         refreshEvidences: loadData,
-        updateEvidence,
         insertEvidence,
+        updateEvidence,
+        removeEvidence,
       }}
     >
       {children}

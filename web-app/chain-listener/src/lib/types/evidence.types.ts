@@ -1,14 +1,15 @@
-import { Address, Bytes32 } from "./solidity.types";
+import { Address, Bytes32 } from "./solidity.types.js";
 
-export interface BasicEvidenceDetails {
+// create schemas with transformations later
+export interface SocketEvidenceDetails {
   id: Bytes32;
-  isActive: boolean;
+  status: "active" | "discontinued";
   description: string;
   creator: Address;
-  timeOfCreation: bigint;
+  createdAt: string;
   currentOwner: Address;
-  currentOwnerTime: bigint;
 }
+
 export interface CustodyRecord {
   owner: Address;
   timestamp: bigint;

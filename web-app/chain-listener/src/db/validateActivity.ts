@@ -1,13 +1,11 @@
 import { publicClient } from "../config/web3config.js";
 import { query } from "../config/db.js";
-import { logger } from "../logger.js";
 import { getIO } from "../config/socket.js";
 import {
   insertNewEvidence,
   updateTransferOwnership,
   updateEvidenceDiscontinued,
 } from "./upsertEvidence.js";
-import { ActivityType } from "../lib/types/activity.types.js";
 import { Address, Bytes32 } from "../lib/types/solidity.types.js";
 import { parseEventLogs, zeroAddress } from "viem";
 import { evidenceLedgerAddress } from "../lib/evidence-ledger-address.js";
@@ -18,6 +16,8 @@ import {
   event_EvidenceDiscontinued,
 } from "../lib/abi/evidence-ledger-abi.js";
 import { bigIntToTimeStamp } from "./acitivtyHelpers.js";
+import { ActivityTypeType } from "../lib/types/activity.types.js";
+import { SocketEvidenceDetails } from "../lib/types/evidence.types.js";
 
 export type clientStatus = "client_only" | "failed";
 
@@ -35,19 +35,19 @@ export type clientStatus = "client_only" | "failed";
 export async function validateActivity(
   evidenceId: Bytes32,
   activityId: bigint,
-  type: ActivityType,
+  type: ActivityTypeType,
   actor: Address,
   txHash: Bytes32 | null,
   blockNumber: bigint | null,
 ): Promise<void> {
   const io = getIO();
-  let updatedAt;
-  let socketExtras: Record<string, any> = {};
+  let updatedAt: bigint;
   const recipients = new Set<string>();
-
+  // making sure
+  actor = actor.toLowerCase() as Address;
   try {
     if (!activityId) {
-      logger.error("validateActivity: query error, invalid activity Id.");
+      console.error("validateActivity: query error, invalid activity Id.");
       throw new Error("db error: invalid activity id");
     }
     const contractAddress = (await publicClient.readContract({
@@ -73,11 +73,12 @@ export async function validateActivity(
     const blockNumberFromReceipt = receipt.blockNumber ?? null;
 
     if (receipt.status !== "success") {
+      console.log("the receopt ", receipt);
       throw new Error("on chain failure");
     }
 
-    // activity update must go to actor at least
-    recipients.add(actor.toLowerCase());
+    let evidence: SocketEvidenceDetails;
+    recipients.add(actor);
     if (type === "create") {
       const eventLogs = parseEventLogs({
         abi: event_EvidenceCreated,
@@ -86,22 +87,27 @@ export async function validateActivity(
       });
       if (eventLogs.length === 0) throw new Error("missing create event");
       const args = eventLogs[0].args;
-
-      updatedAt = await insertNewEvidence(
+      const creator = args.creator.toLowerCase() as Address;
+      if (creator !== actor) throw new Error("invalid creator");
+      await insertNewEvidence(
         args.metadataHash,
         args.contractAddress,
         args.evidenceId,
-        args.creator,
+        creator,
         args.timeOfCreation,
         blockNumberFromReceipt,
         txHash,
         args.desc,
       );
-
-      socketExtras = {
-        createdAt: bigIntToTimeStamp(args.timeOfCreation),
-        desc: args.desc,
+      evidence = {
+        id: args.evidenceId,
+        status: "active",
+        description: args.desc,
+        creator: creator,
+        createdAt: args.timeOfCreation.toString(),
+        currentOwner: creator,
       };
+      updatedAt = args.timeOfCreation;
     } else if (type === "transfer") {
       const eventLogs = parseEventLogs({
         abi: event_OwnershipTransferred,
@@ -110,18 +116,23 @@ export async function validateActivity(
       });
       if (eventLogs.length === 0) throw new Error("missing transfer event");
       const args = eventLogs[0].args;
-      const newOwner = args.newOwner.toLowerCase();
-      updatedAt = await updateTransferOwnership(
+      const newOwner = args.newOwner.toLowerCase() as Address;
+      const result = await updateTransferOwnership(
         args.evidenceId,
         newOwner,
         txHash,
         blockNumberFromReceipt,
         args.timeOfTransfer,
       );
-      socketExtras = {
-        toAddr: newOwner,
-        transferredAt: bigIntToTimeStamp(args.timeOfTransfer),
+      evidence = {
+        id: args.evidenceId,
+        status: "active",
+        description: result.desc,
+        creator: result.creator,
+        createdAt: result.createdAt.toString(),
+        currentOwner: newOwner,
       };
+      updatedAt = args.timeOfTransfer;
       recipients.add(newOwner);
     } else if (type === "discontinue") {
       const eventLogs = parseEventLogs({
@@ -131,17 +142,22 @@ export async function validateActivity(
       });
       if (eventLogs.length === 0) throw new Error("missing discontinue event");
       const args = eventLogs[0].args;
-      const currentOwner = args.currentOwner.toLowerCase();
-      updatedAt = await updateEvidenceDiscontinued(
+      const currentOwner = args.currentOwner.toLowerCase() as Address;
+      const result = await updateEvidenceDiscontinued(
         args.evidenceId,
         txHash,
         blockNumberFromReceipt,
         args.timeOfDiscontinuation,
       );
-      socketExtras = {
-        discontinuedAt: bigIntToTimeStamp(args.timeOfDiscontinuation),
+      evidence = {
+        id: args.evidenceId,
+        status: "discontinued",
+        description: result.desc,
+        creator: result.creator,
+        createdAt: result.createdAt.toString(),
         currentOwner: currentOwner,
       };
+      updatedAt = args.timeOfDiscontinuation;
       recipients.add(currentOwner);
     } else {
       throw new Error(`invalid activity: ${type}`);
@@ -151,59 +167,53 @@ export async function validateActivity(
       "client_only",
       txHash,
       receipt.blockNumber,
-      undefined,
-      updatedAt,
+      bigIntToTimeStamp(updatedAt),
     );
-    logger.info(`Emitting Socket Event: "activity_update to client only"`, {
-      recipients: Array.from(recipients),
-    });
-
-    // incase of type transfer/discontinue , also send it to the toAddr/currentowner resp.
+    // emit the event to recipients
     io.to(Array.from(recipients)).emit("activity_update", {
-      account: actor,
-      evidenceId: evidenceId,
+      activityId: activityId.toString(),
+      actor: actor,
       type: type,
       status: "client_only",
-      activityId: activityId.toString(),
-      txHash: txHash ? txHash.toLowerCase() : null,
-      updatedAt: updatedAt,
-      ...socketExtras,
+      txHash: txHash.toLowerCase(),
+      updatedAt: updatedAt.toString(),
+      evidence,
     });
   } catch (err) {
-    logger.info(
-      `Emitting Socket Event: "activity_update to failed" ${err && ",failed due to: " + err}`,
-      {
-        account: actor,
-      },
-    );
     updatedAt = await updateActivityForClient(
       activityId,
       "failed",
       txHash,
       blockNumber,
+      undefined,
       String(err),
-      updatedAt,
     );
     io.to(actor).emit("activity_update", {
-      account: actor,
-      evidenceId: evidenceId,
+      activityId: activityId.toString(),
+      actor: actor,
       type: type,
       status: "failed",
-      activityId: activityId.toString(),
       txHash: txHash ? txHash.toLowerCase() : null,
       updatedAt: updatedAt,
+      evidenceId: evidenceId, // in case txHash is missing
+      error: err,
+    });
+    console.warn(`Emitted Socket Event: "activity_update failed"`, {
+      actor: actor,
+      evidence: evidenceId,
       error: err,
     });
   }
 }
 
+// only returns update_at if activity failed
 async function updateActivityForClient(
   activityId: bigint,
   status: clientStatus,
   txHash: Bytes32 | null,
   blockNumber: bigint | null,
+  preferUpdatedAt?: Date,
   error?: string,
-  evidenceUpsertUpdatedAt?: Date,
 ) {
   try {
     if (status === "failed") {
@@ -245,12 +255,12 @@ async function updateActivityForClient(
           txHash.toLowerCase(),
           blockNumber ? blockNumber.toString() : null,
           activityId.toString(),
-          evidenceUpsertUpdatedAt || null,
+          preferUpdatedAt || null,
         ],
       );
     }
   } catch (err) {
-    logger.error("updateActivityForClient: db error", err);
+    console.error("updateActivityForClient: db error", err);
     throw new Error("db error");
   }
 }

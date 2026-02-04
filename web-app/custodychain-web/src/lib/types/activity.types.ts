@@ -6,15 +6,6 @@ import {
   Bytes32,
 } from "./solidity.types";
 
-const BaseActivitySchema = z.object({
-  contractAddress: AddressSchema,
-  evidenceId: Bytes32Schema,
-  actor: AddressSchema,
-  txHash: Bytes32Schema.optional(),
-  blockNumber: z.coerce.bigint().optional(),
-  meta: z.record(z.string(), z.unknown()).optional(),
-});
-
 export const ActivityTypeSchema = z.enum([
   "create",
   "transfer",
@@ -29,67 +20,30 @@ export const ActivityStatusSchema = z.enum([
   "pending",
 ]);
 
-export const CreateActivitySchema = BaseActivitySchema.extend({
-  type: z.literal("create"),
+export const ActivityInputSchema = z.object({
+  evidenceId: Bytes32Schema,
+  actor: AddressSchema,
+  owner: AddressSchema,
+  type: ActivityTypeSchema,
+  txHash: Bytes32Schema.optional(),
+  blockNumber: z.coerce.bigint().optional(),
+  meta: z.record(z.string(), z.unknown()).optional(),
+  initializedAt: z.date(),
 });
-
-export const TransferActivitySchema = BaseActivitySchema.extend({
-  type: z.literal("transfer"),
-  from: AddressSchema,
-  to: AddressSchema,
-});
-
-export const DiscontinueActivitySchema = BaseActivitySchema.extend({
-  type: z.literal("discontinue"),
-});
-
-export const FetchActivitySchema = BaseActivitySchema.extend({
-  type: z.literal("fetch"),
-});
-
-export const ActivityInputSchema = z.discriminatedUnion("type", [
-  CreateActivitySchema,
-  TransferActivitySchema,
-  DiscontinueActivitySchema,
-  FetchActivitySchema,
-]);
 
 export type ActivityTypeType = z.infer<typeof ActivityTypeSchema>;
 export type ActivityStatus = z.infer<typeof ActivityStatusSchema>;
-export type ActivityInput = z.infer<typeof ActivityInputSchema>;
-export type CreateActivityInput = z.infer<typeof CreateActivitySchema>;
-export type TransferActivityInput = z.infer<typeof TransferActivitySchema>;
-export type DiscontinueActivityInput = z.infer<
-  typeof DiscontinueActivitySchema
->;
-export type FetchActivityInput = z.infer<typeof FetchActivitySchema>;
+export type ActivityInputType = z.infer<typeof ActivityInputSchema>;
 
-// Raw DB data
-export interface ActivityRow {
-  id: bigint;
-  initialized_at: Date | null;
-  updated_at: Date | null;
-  evidence_id: Bytes32;
-  actor: Bytes32;
-  type: ActivityTypeType;
-  status: ActivityStatus;
-  tx_hash: Bytes32;
-  block_number: bigint | null;
-  to_addr?: Address;
-  meta: any;
-  contract_address: Address;
-  owner: Address;
-}
-
+// Context types
 export interface ActivityInfoForPanel {
-  id: bigint;
+  id: string;
   type: ActivityTypeType;
   status: ActivityStatus;
-  tx_hash: Bytes32 | null;
-  to_addr?: Address;
-  updated_at: Date | null;
+  txHash: Bytes32 | null;
+  updatedAt: Date;
   actor: Address;
-  evidence_id: Bytes32;
+  evidenceId: Bytes32;
   owner: Address;
   error?: string;
 }

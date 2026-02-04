@@ -7,14 +7,15 @@ import {
 } from "../account/upsertAccountInfo";
 import {
   ActivityInputSchema,
-  ActivityInput,
+  ActivityInputType,
 } from "@/src/lib/types/activity.types";
 
 type clientStatus = "client_only" | "pending";
 
-export async function insertClientActivity(input: ActivityInput) {
+export async function insertClientActivity(input: ActivityInputType) {
   const result = ActivityInputSchema.safeParse(input);
   if (!result.success) {
+    console.log("insert clien: ", result.error);
     throw new Error("invalid activity");
   }
   const safeInput = result.data;
@@ -38,24 +39,18 @@ export async function insertClientActivity(input: ActivityInput) {
 
 async function insertNewActivity(
   status: clientStatus,
-  activityInfo: ActivityInput,
+  activityInfo: ActivityInputType,
 ) {
-  let to = null;
-  if (activityInfo.type === "transfer") {
-    to = activityInfo.to.toLowerCase();
-  }
   const meta = activityInfo.meta ?? {};
   const blockNumber = activityInfo.blockNumber ?? 0n;
 
   await query(
     `
     INSERT INTO activity (
-      contract_address,
       evidence_id,
       actor,
       type,
       owner,
-      to_addr,
       status,
       tx_hash,
       block_number,
@@ -63,19 +58,18 @@ async function insertNewActivity(
       initialized_at,
       updated_at
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, now(), now())
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $9)
     `,
     [
-      activityInfo.contractAddress.toLowerCase(),
       activityInfo.evidenceId.toLowerCase(),
       activityInfo.actor.toLowerCase(),
       activityInfo.type,
-      activityInfo.actor.toLowerCase(),
-      to,
+      activityInfo.owner.toLowerCase(),
       status,
       activityInfo.txHash?.toLowerCase(),
       blockNumber.toString(),
       meta,
+      activityInfo.initializedAt,
     ],
   );
 }

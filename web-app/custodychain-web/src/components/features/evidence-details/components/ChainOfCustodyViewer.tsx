@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { CustodyRecord } from "@/src/lib/types/evidence.types";
+import { bigIntToDate } from "@/src/lib/util/helpers";
 
 interface ChainOfCustodyViewerProps {
   chainOfCustody: CustodyRecord[];
@@ -93,7 +94,7 @@ export default function ChainOfCustodyViewer({
                       {index + 1}
                     </div>
                     <time className="text-orange-900 block leading-none">
-                      {record.timestamp.toLocaleString()}
+                      {bigIntToDate(record.timestamp).toLocaleString()}
                     </time>
                     <p className="text-orange-900 break-all">{record.owner}</p>
                   </div>

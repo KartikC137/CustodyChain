@@ -71,6 +71,7 @@ export default function CreateEvidenceForm() {
     setIsLoading(true);
 
     try {
+      let initializedAt = new Date();
       const _evidenceId = keccak256(
         encodePacked(
           ["address", "bytes32", "uint256"],
@@ -111,26 +112,27 @@ export default function CreateEvidenceForm() {
         args: [_evidenceId],
       })) as Address;
 
-      // Activity Panel
+      // Activity context
       const pendingActivity: ActivityInfoForPanel = {
-        id: BigInt("-1"),
+        id: "-1",
         status: "pending",
         type: "create",
         actor: account as Address,
         owner: account as Address,
-        tx_hash: txHash,
-        updated_at: null,
-        evidence_id: _evidenceId,
+        txHash: txHash,
+        updatedAt: initializedAt,
+        evidenceId: _evidenceId,
       };
       addPendingActivity(pendingActivity);
 
       // DB
       await insertClientActivity({
-        contractAddress: _newContractAddress,
         evidenceId: _evidenceId,
         actor: account,
+        owner: account,
         type: "create",
         txHash: txHash,
+        initializedAt: initializedAt,
       });
 
       setMetadataHash("");

@@ -19,7 +19,7 @@ export const parseChainOfCustody = (rawChainOfCustody: string) => {
   return matches.map((match) => {
     return {
       owner: match[1],
-      timestamp: bigIntToDate(BigInt(match[2])),
+      timestamp: BigInt(match[2]),
     };
   });
 };

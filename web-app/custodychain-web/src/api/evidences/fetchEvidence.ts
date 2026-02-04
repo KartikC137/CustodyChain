@@ -1,10 +1,10 @@
 "use server";
 
 import { query } from "@/src/config/db";
-import { EvidenceDetails, EvidenceRow } from "@/src/lib/types/evidence.types";
+import { EvidenceDetails } from "@/src/lib/types/evidence.types";
 import { Address, Bytes32 } from "@/src/lib/types/solidity.types";
 import { parseChainOfCustody } from "@/src/lib/util/helpers";
-import { StatusFilter, RoleFilter } from "@/src/lib/types/evidence.types";
+import { SocketEvidenceDetails } from "@/src/lib/types/socketEvent.types";
 
 /**
  * @returns Formatted data from db of type EvidenceDetails
@@ -16,7 +16,7 @@ export async function fetchSingleEvidence(
     `
     SELECT contract_address, creator, created_at, current_owner, description, chain_of_custody, status, discontinued_at 
     FROM evidence
-    WHERE evidence_id = $1
+    WHERE id = $1
     `,
     [id],
   );
@@ -34,70 +34,71 @@ export async function fetchSingleEvidence(
   };
 }
 
-/**
- *
- * @param account
- * @param statusFilter i. active: evidences active only,
- *                     ii. owned: evidences discontinued/archived only,
- *                     iii. all: active or discontinued
- * @param roleFilter i. created: evidences created by account, initially creator == current_owner.
- *                   ii. owned: evidences owned by account, initially creator == current_owner.
- *                   iii. all: evidences either owned or created. (all the evidences this account is involved in)
- * @returns array of evidence details
- */
-export async function fetchEvidencesByFilter(
-  account: Address,
-  status: StatusFilter = "all",
-  role: RoleFilter = "all",
-): Promise<EvidenceRow[]> {
-  const formattedAccount = account.toLowerCase();
-
-  let sql = `
-    SELECT evidence_id, status, description, creator, created_at, current_owner, updated_at
-    FROM evidence
-    WHERE
-  `;
-  const params: any[] = [];
-  let paramIndex = 1;
-
-  if (status !== "all") {
-    sql += ` status = $${paramIndex}`;
-    params.push(status);
-    paramIndex++;
-  } else {
-    sql += ` (status = 'active' OR status = 'discontinued')`;
-  }
-
-  if (role === "created") {
-    sql += ` AND creator = $${paramIndex}`;
-    params.push(formattedAccount);
-  } else if (role === "owned") {
-    sql += ` AND current_owner = $${paramIndex}`;
-    params.push(formattedAccount);
-  } else {
-    sql += ` AND (creator = $${paramIndex} OR current_owner = $${paramIndex})`;
-    params.push(formattedAccount);
-  }
-
-  try {
-    const result = await query(sql, params);
-    return result.rows;
-  } catch (error) {
-    console.error("Error fetching evidences:", error);
-    throw new Error("Failed to fetch evidences");
-  }
-}
-
 export async function fetchEvidencesByAccount(
   account: Address,
-): Promise<EvidenceRow[]> {
+): Promise<SocketEvidenceDetails[]> {
   const result = await query(
     `
-     SELECT evidence_id, status, description, creator, created_at, current_owner, updated_at
+     SELECT id, status, description, creator, created_at as "createdAt", current_owner as "currentOwner"
      FROM evidence
      WHERE creator = $1 OR current_owner = $1
+     ORDER BY updated_at DESC
     `,
     [account.toLowerCase()],
   );
   return result.rows;
 }
+
+// /**
+//  *
+//  * @param account
+//  * @param statusFilter i. active: evidences active only,
+//  *                     ii. owned: evidences discontinued/archived only,
+//  *                     iii. all: active or discontinued
+//  * @param roleFilter i. created: evidences created by account, initially creator == current_owner.
+//  *                   ii. owned: evidences owned by account, initially creator == current_owner.
+//  *                   iii. all: evidences either owned or created. (all the evidences this account is involved in)
+//  * @returns array of evidence details
+//  */
+// export async function fetchEvidencesByFilter(
+//   account: Address,
+//   status: StatusFilter = "all",
+//   role: RoleFilter = "all",
+// ): Promise<EvidenceRow[]> {
+//   const formattedAccount = account.toLowerCase();
+
+//   let sql = `
+//     SELECT evidence_id, status, description, creator, created_at, current_owner, updated_at
+//     FROM evidence
+//     WHERE
+//   `;
+//   const params: any[] = [];
+//   let paramIndex = 1;
+
+//   if (status !== "all") {
+//     sql += ` status = $${paramIndex}`;
+//     params.push(status);
+//     paramIndex++;
+//   } else {
+//     sql += ` (status = 'active' OR status = 'discontinued')`;
+//   }
+
+//   if (role === "created") {
+//     sql += ` AND creator = $${paramIndex}`;
+//     params.push(formattedAccount);
+//   } else if (role === "owned") {
+//     sql += ` AND current_owner = $${paramIndex}`;
+//     params.push(formattedAccount);
+//   } else {
+//     sql += ` AND (creator = $${paramIndex} OR current_owner = $${paramIndex})`;
+//     params.push(formattedAccount);
+//   }
+
+//   try {
+//     const result = await query(sql, params);
+//     return result.rows;
+//   } catch (error) {
+//     console.error("Error fetching evidences:", error);
+//     throw new Error("Failed to fetch evidences");
+//   }
+// }

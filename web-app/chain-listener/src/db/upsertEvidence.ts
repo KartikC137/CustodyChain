@@ -1,6 +1,7 @@
 import { Address, Bytes32 } from "../lib/types/solidity.types.js";
 import { query } from "../config/db.js";
-import { bigIntToTimeStamp } from "./acitivtyHelpers.js";
+import { CustodyRecord } from "../lib/types/evidence.types.js";
+import { parseChainOfCustody } from "./evidenceHelpers.js";
 
 /**
  * @param timeOfCreation is bigint to keep custody record consistency and precision.
@@ -9,20 +10,20 @@ export async function insertNewEvidence(
   metadataHash: Bytes32,
   contractAddress: Address,
   evidenceId: Bytes32,
-  actor: Address,
+  actor: Address, //already lowercased
   timeOfCreation: bigint,
   block: bigint,
   creationTxHash: Bytes32,
   desc: string,
-): Promise<Date> {
+) {
   try {
-    const result = await query(
+    await query(
       `
     INSERT INTO evidence (
       status,
       metadata_hash,
       contract_address,
-      evidence_id,
+      id,
       creator,
       created_at,
       current_owner,
@@ -34,26 +35,23 @@ export async function insertNewEvidence(
       description,
       chain_of_custody
     )
-    VALUES ('active', $1, $2, $3, $4, $5, $6, now(), $7, $8, $9, $10, $11, ARRAY[ ($4, $12)::custody_record_t ])
-    ON CONFLICT (evidence_id) DO NOTHING
-    RETURNING updated_at
+    VALUES ('active', $1, $2, $3, $4, $5, $6, $5, $7, $8, $9, $10, $11, ARRAY[ ($4, $5)::custody_record_t ])
+    ON CONFLICT (id) DO NOTHING
     `,
       [
         metadataHash.toLowerCase(),
         contractAddress.toLowerCase(),
         evidenceId.toLowerCase(),
-        actor.toLowerCase(),
-        bigIntToTimeStamp(timeOfCreation),
-        actor.toLowerCase(),
+        actor,
+        timeOfCreation,
+        actor,
         creationTxHash.toLowerCase(),
         block,
         block,
         creationTxHash.toLowerCase(),
         desc,
-        timeOfCreation,
       ],
     );
-    return result.rows[0].updated_at;
   } catch (err) {
     throw new Error("insert evidence failed: db error");
   }
@@ -67,7 +65,11 @@ export async function updateTransferOwnership(
   latestTxHash: Bytes32,
   lastTxBlock: bigint,
   timeOfTransfer: bigint,
-): Promise<Date> {
+): Promise<{
+  createdAt: bigint;
+  desc: string;
+  creator: Address;
+}> {
   try {
     const result = await query(
       `
@@ -75,10 +77,10 @@ export async function updateTransferOwnership(
     SET current_owner = $1,
         latest_tx_hash = $2,
         last_tx_block = $3,
-        updated_at = now(),
+        updated_at = $4,
         chain_of_custody = array_append(chain_of_custody, ($1, $4)::custody_record_t)
-    WHERE evidence_id = $5
-    RETURNING updated_at
+    WHERE id = $5
+    RETURNING created_at, description, creator
     `,
       [
         currentOwner, // already lowercased in parent
@@ -89,7 +91,11 @@ export async function updateTransferOwnership(
       ],
     );
 
-    return result.rows[0].updated_at;
+    return {
+      createdAt: result.rows[0].created_at,
+      desc: result.rows[0].description,
+      creator: result.rows[0].creator,
+    };
   } catch (err) {
     throw new Error("update evidence failed: db error");
   }
@@ -100,7 +106,11 @@ export async function updateEvidenceDiscontinued(
   latestTxHash: Bytes32,
   lastTxBlock: bigint,
   timeOfDiscontinuation: bigint,
-): Promise<Date> {
+): Promise<{
+  createdAt: bigint;
+  desc: string;
+  creator: Address;
+}> {
   try {
     const result = await query(
       `
@@ -109,19 +119,23 @@ export async function updateEvidenceDiscontinued(
         latest_tx_hash = $1,
         last_tx_block = $2,
         discontinued_at = $3,
-        updated_at = now()
-    WHERE evidence_id = $4
-    RETURNING updated_at
+        updated_at = $3
+    WHERE id = $4
+    RETURNING created_at, description, creator
     `,
       [
         latestTxHash.toLowerCase(),
         lastTxBlock,
-        bigIntToTimeStamp(timeOfDiscontinuation),
+        timeOfDiscontinuation,
         evidenceId.toLowerCase(),
       ],
     );
 
-    return result.rows[0].updated_at;
+    return {
+      createdAt: result.rows[0].created_at,
+      desc: result.rows[0].description,
+      creator: result.rows[0].creator,
+    };
   } catch (err) {
     throw new Error("update evidence failed: db error");
   }

@@ -14,9 +14,11 @@ import { Address, Bytes32 } from "@/src/lib/types/solidity.types";
 import { ActivityInfoForPanel } from "@/src/lib/types/activity.types";
 import { evidenceAbi } from "@/src/lib/contracts/chain-of-custody-abi";
 import { insertClientActivity } from "@/src/api/activities/insertClientActivity";
+import { useEvidences } from "@/src/context-and-hooks/EvidencesContext";
 import { validAddressCheck } from "@/src/lib/util/helpers";
 
 interface TransferOwnershipFormProps {
+  creator: Address;
   contractAddress: Address;
   isActive: boolean;
   currentOwner: Address;
@@ -25,6 +27,7 @@ interface TransferOwnershipFormProps {
 }
 
 export default function TransferOwnershipForm({
+  creator,
   contractAddress,
   isActive,
   currentOwner,
@@ -33,6 +36,7 @@ export default function TransferOwnershipForm({
 }: TransferOwnershipFormProps) {
   const { account, chain, walletClient, publicClient } = useWeb3();
   const { addPendingActivity } = useActivities();
+  const { removeEvidence } = useEvidences();
 
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [nextOwner, setNextOwner] = useState<string | "">("");
@@ -86,6 +90,8 @@ export default function TransferOwnershipForm({
     setIsLoading(true);
 
     try {
+      let initializedAt = new Date();
+
       const txHash = await walletClient.writeContract({
         address: contractAddress as `0x${string}}`,
         chain: chain,
@@ -97,29 +103,30 @@ export default function TransferOwnershipForm({
       });
 
       const pendingActivity: ActivityInfoForPanel = {
-        id: BigInt("-1"), //Temporary placeholder
+        id: "-1", //Temporary placeholder
         status: "pending",
         type: "transfer",
         actor: account,
-        owner: account,
-        tx_hash: txHash,
-        updated_at: null,
-        evidence_id: evidenceId,
-        to_addr: nextOwner,
+        owner: nextOwner,
+        txHash: txHash,
+        updatedAt: initializedAt,
+        evidenceId: evidenceId,
       };
       addPendingActivity(pendingActivity);
 
       // DB
       await insertClientActivity({
-        contractAddress: contractAddress,
         evidenceId: evidenceId,
         actor: account,
         type: "transfer",
         txHash: txHash,
-        from: account,
-        to: nextOwner,
+        owner: nextOwner,
+        initializedAt: initializedAt,
       });
-
+      // Remove the evidence from context only if creator is not the account
+      if (creator.toLowerCase() !== account) {
+        removeEvidence(evidenceId);
+      }
       onTransferFormSuccess(true);
     } catch (err) {
       //todo: expect more errors

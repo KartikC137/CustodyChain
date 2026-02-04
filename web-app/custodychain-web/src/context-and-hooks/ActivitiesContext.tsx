@@ -12,6 +12,8 @@ import { ActivityInfoForPanel } from "../lib/types/activity.types";
 import { useWeb3 } from "./Web3Context";
 import { useEvidences } from "./EvidencesContext";
 import { fetchActivitiesForPanel } from "../api/activities/fetchActivities";
+import { SocketUpdateType } from "../lib/types/socketEvent.types";
+import { bigIntToDate } from "../lib/util/helpers";
 
 interface ActivityContextType {
   activities: ActivityInfoForPanel[];
@@ -22,7 +24,8 @@ interface ActivityContextType {
 
 /**
  * @notice Only handles client_only, pending and failed.
- * @dev when an activity of type transfer and client_only and where actor not equal to account is received (i.e evidence was transferred from someone else)
+ * @dev 1. Socket events cannot serialize bigint values, they emit string values, so convert string to bigint always
+ *      2.when an activity of type transfer and client_only and where actor not equal to account is received (i.e evidence was transferred from someone else)
  *      it has to be inserted as new, as it was never inserted by any transfer form.
  * @todo fix evidences and activities context
  *
@@ -31,20 +34,18 @@ const ActivityContext = createContext<ActivityContextType | null>(null);
 
 export function ActivityProvider({ children }: { children: ReactNode }) {
   const { account } = useWeb3();
-  const { updateEvidence, insertEvidence } = useEvidences();
+  const { insertEvidence, updateEvidence } = useEvidences();
   const [activities, setActivities] = useState<ActivityInfoForPanel[]>([]);
   const [isLoadingActivities, setIsLoadingActivities] = useState(false);
 
   const refreshActivities = useCallback(async () => {
-    if (!account) {
-      setActivities([]);
-      return;
-    }
-
     setIsLoadingActivities(true);
+
     try {
-      const data = await fetchActivitiesForPanel(account, 20);
-      console.info("acitvities fetced", data);
+      if (!account) {
+        return;
+      }
+      const data = await fetchActivitiesForPanel(account);
       setActivities(data);
     } catch (err) {
       console.error("Failed to fetch activities", err);
@@ -61,88 +62,58 @@ export function ActivityProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const socket = getSocket();
 
-    const handleUpdate = (update: any) => {
-      console.log("Socket Update Received:", update);
+    const handleUpdate = (update: SocketUpdateType) => {
+      console.info("Socket Update Received:", update);
 
       if (update.status === "client_only") {
         if (update.type === "create") {
-          insertEvidence({
-            evidence_id: update.evidenceId,
-            status: "active",
-            description: update.desc,
-            creator: update.account,
-            created_at: update.createdAt,
-            current_owner: update.account,
-            updated_at: update.updatedAt,
-          });
-        } else {
-          if (update.account !== account) {
-            console.info(
-              "Recieve triggered------------------------------",
-              update.account,
-              account,
-            );
-            // evidence was received, insert new evidence and activity
-            addPendingActivity({
-              id: update.id,
-              status: "client_only",
-              type: update.type,
-              actor: update.account,
-              tx_hash: update.txHash,
-              updated_at: update.updatedAt,
-              evidence_id: update.evidenceId,
-              owner: update.toAddr,
-              to_addr: update.toAddr,
-            });
-          } else {
-            updateEvidence(
-              update.evidenceId,
-              update.type,
-              update.updatedAt,
-              update.toAddress,
-              update.createdAt,
-            );
+          insertEvidence(update.evidence);
+        } else if (update.type === "transfer") {
+          // evidence was received, sender = update.actor, to (this account) = update.currentOwner, creator = update.creator
+          if (update.actor !== account) {
+            setActivities((prev) => [
+              {
+                id: update.activityId,
+                type: "transfer",
+                status: "client_only",
+                txHash: update.txHash,
+                updatedAt: bigIntToDate(BigInt(update.updatedAt)),
+                actor: update.actor,
+                evidenceId: update.evidence.id,
+                owner: update.evidence.currentOwner,
+              },
+              ...prev,
+            ]);
+            // ensures if evidence was recieved back its not re-inserted
+            if (update.evidence.creator !== account) {
+              insertEvidence(update.evidence);
+            }
           }
+          // evidence was transferred, sender = update.actor (this account) , to = update.currentOwner
+          // this check ensures that evidence is not updated if its being removed
+          if (update.evidence.creator === account) {
+            updateEvidence(update.evidence, "transfer");
+          }
+        } else if (update.type === "discontinue") {
+          updateEvidence(update.evidence, "discontinue");
         }
       }
 
-      // updates only pending activities inserted by client
       setActivities((prev) =>
         prev.map((act) => {
           if (act.status === "pending") {
-            if (act.tx_hash && update.txHash) {
-              const isHashMatch = act.tx_hash.toLowerCase() === update.txHash;
-              if (isHashMatch) {
-                return {
-                  ...act,
-                  id: BigInt(update.activityId),
-                  status: update.status,
-                  tx_hash: update.txHash,
-                  updated_at: update.updatedAt,
-                  error: update.error || undefined,
-                };
-                // txHash can be missing in failed activities, fallback to other checks
-              } else if (update.status === "failed") {
-                const isActMatch =
-                  act.evidence_id.toLowerCase() === update.evidenceId &&
-                  act.type === update.type;
-                if (isActMatch) {
-                  return {
-                    ...act,
-                    id: BigInt(update.activityId),
-                    status: update.status,
-                    tx_hash: update.txHash || null,
-                    updated_at: update.updatedAt || null,
-                    error: update.error || undefined,
-                  };
-                }
-                // otherwise its failed to avoid infinite pending state
-                return {
-                  ...act,
-                  status: "failed",
-                  error: update.error,
-                };
-              }
+            const isHashMatch =
+              update.txHash &&
+              (act.txHash as string).toLowerCase() === update.txHash;
+            if (isHashMatch) {
+              return {
+                ...act,
+                id: update.activityId,
+                status: update.status,
+                txHash: update.txHash,
+                updatedAt: bigIntToDate(BigInt(update.updatedAt)),
+                error: update.status === "failed" ? update.error : undefined,
+              };
             }
           }
           return act;
@@ -158,7 +129,11 @@ export function ActivityProvider({ children }: { children: ReactNode }) {
   }, [account]);
 
   const addPendingActivity = (newActivity: ActivityInfoForPanel) => {
-    setActivities((prev) => [newActivity, ...prev]);
+    if (!newActivity.txHash) {
+      setActivities((prev) => [{ ...newActivity, status: "failed" }, ...prev]);
+    } else {
+      setActivities((prev) => [newActivity, ...prev]);
+    }
   };
 
   return (

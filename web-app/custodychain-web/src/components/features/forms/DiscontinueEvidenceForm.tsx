@@ -59,6 +59,8 @@ export default function DiscontinueEvidence({
     setIsLoading(true);
 
     try {
+      let initializedAt = new Date();
+
       const txHash = await walletClient.writeContract({
         address: contractAddress as `0x${string}`,
         chain: chain,
@@ -69,24 +71,25 @@ export default function DiscontinueEvidence({
 
       // Activity
       const pendingActivity: ActivityInfoForPanel = {
-        id: BigInt("-1"), //Temporary placeholder
+        id: "-1", //Temporary placeholder
         status: "pending",
         type: "discontinue",
         actor: account,
         owner: account,
-        tx_hash: txHash,
-        updated_at: null,
-        evidence_id: evidenceId,
+        txHash: txHash,
+        updatedAt: initializedAt,
+        evidenceId: evidenceId,
       };
       addPendingActivity(pendingActivity);
 
       // DB
       await insertClientActivity({
-        contractAddress: contractAddress,
         evidenceId: evidenceId,
         actor: account,
+        owner: account,
         type: "discontinue",
         txHash: txHash,
+        initializedAt: initializedAt,
       });
 
       onDiscontinueFormSuccess(true);

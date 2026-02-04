@@ -128,12 +128,12 @@ export default function useFetchSingleEvidence(evidenceId: Bytes32) {
           id,
           contractAddress,
           creator,
-          timeOfCreation: bigIntToDate(timeOfCreation),
+          timeOfCreation: timeOfCreation,
           currentOwner,
           description,
           chainOfCustody,
           isActive,
-          timeOfDiscontinuation: bigIntToDate(timeOfDiscontinuation),
+          timeOfDiscontinuation: timeOfDiscontinuation,
         });
         setDataSource("BLOCKCHAIN");
       } catch (err) {

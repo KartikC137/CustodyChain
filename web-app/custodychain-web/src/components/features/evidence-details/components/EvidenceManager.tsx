@@ -35,6 +35,7 @@ export default function EvidenceManager({
 
       {currentAccount.toLowerCase() === currentOwner.toLowerCase() && (
         <TransferOwnershipForm
+          creator={creator}
           contractAddress={contractAddress}
           isActive={isActive as boolean}
           currentOwner={currentOwner as Address}

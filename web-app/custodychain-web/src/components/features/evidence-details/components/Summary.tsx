@@ -1,4 +1,5 @@
 import { EvidenceSummaryType } from "@/src/lib/types/evidence.types";
+import { bigIntToDate } from "@/src/lib/util/helpers";
 
 export default function EvidenceSummary({
   source,
@@ -31,13 +32,14 @@ export default function EvidenceSummary({
         </p>
         <p>
           Creator: <span className="text-orange-700">{creator}</span> @{" "}
-          {timeOfCreation.toLocaleString()} to{" "}
-          {!isActive && timeOfDiscontinuation.toLocaleString()}
+          {bigIntToDate(timeOfCreation).toLocaleString()}
+          {!isActive &&
+            " to " + bigIntToDate(timeOfDiscontinuation).toLocaleString()}
         </p>
         <p>
           {isActive ? "Current Owner: " : "Last Owner: "}
           <span className="text-orange-700">{currentOwner}</span> @{" "}
-          {currentOwnerTime.toLocaleString()}
+          {bigIntToDate(currentOwnerTime).toLocaleString()}
         </p>
       </div>
     </div>

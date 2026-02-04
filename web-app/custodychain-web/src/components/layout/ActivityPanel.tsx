@@ -8,7 +8,6 @@ import { ActivityInfoForPanel } from "@/src/lib/types/activity.types";
 export default function ActivityPanel() {
   const { account } = useWeb3();
   const { activities, isLoadingActivities } = useActivities();
-
   return (
     <div className="relative max-h-[686px] rounded-md bg-orange-50 border-2 border-orange-700">
       <div className="absolute p-3 top-0 right-0 left-0 backdrop-blur-xs bg-orange-100/75 rounded-t-md font-sans font-[500] text-2xl text-orange-900 border-b-2 border-orange-700">
@@ -20,7 +19,7 @@ export default function ActivityPanel() {
           <p className="text-center text-sm text-gray-500 p-4">
             Connect your wallet to see activity.
           </p>
-        ) : isLoadingActivities ? (
+        ) : !account || isLoadingActivities ? (
           <p className="animate-pulse text-center text-sm text-gray-500 p-4">
             Loading activities...
           </p>
@@ -30,7 +29,7 @@ export default function ActivityPanel() {
           </p>
         ) : (
           activities.map((activity: ActivityInfoForPanel) => {
-            const key = `${activity.tx_hash}-${activity.evidence_id}-${activity.status}-${activity.type}-${activity.updated_at}`;
+            const key = `${activity.txHash}-${activity.evidenceId}-${activity.status}-${activity.type}-${activity.updatedAt}`;
             // currently ignores fetch activities
             return (
               <div
@@ -75,26 +74,26 @@ export default function ActivityPanel() {
                   </span>
 
                   <span className="font-mono text-sm text-orange-800">
-                    {new Date(activity.updated_at as Date).toLocaleTimeString()}
+                    {activity.updatedAt.toLocaleString()}
                   </span>
                 </div>
 
                 <Link
-                  href={`/evidence/${activity.evidence_id}`}
+                  href={`/evidence/${activity.evidenceId}`}
                   className="block hover:underline font-mono text-sm text-orange-800"
                 >
-                  <span>Evidence ID:</span> {activity.evidence_id.slice(0, 8)}
+                  <span>Evidence ID:</span> {activity.evidenceId.slice(0, 8)}
                   ...
-                  {activity.evidence_id.slice(58, 66)}
+                  {activity.evidenceId.slice(58, 66)}
                 </Link>
 
-                {activity.type === "transfer" && activity.to_addr && (
+                {activity.type === "transfer" && activity.owner && (
                   <div className="font-mono text-sm text-orange-800">
                     {activity.actor === account
                       ? "To: " +
-                        activity.to_addr.slice(0, 8) +
+                        activity.owner.slice(0, 8) +
                         "..." +
-                        activity.to_addr.slice(24, 32)
+                        activity.owner.slice(24, 32)
                       : "From: " +
                         activity.actor.slice(0, 8) +
                         "..." +
