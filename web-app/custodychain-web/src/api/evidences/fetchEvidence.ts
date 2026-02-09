@@ -14,91 +14,34 @@ export async function fetchSingleEvidence(
 ): Promise<EvidenceDetails> {
   const result = await query(
     `
-    SELECT contract_address, creator, created_at, current_owner, description, chain_of_custody, status, discontinued_at 
+    SELECT id, status, description, creator, current_owner AS "currentOwner", created_at AS "createdAt", transferred_at AS "transferredAt", contract_address AS "contractAddress", chain_of_custody, discontinued_at AS "discontinuedAt"
     FROM evidence
     WHERE id = $1
     `,
     [id],
   );
-  const resultRow = result.rows[0];
   return {
-    id: id,
-    contractAddress: resultRow.contract_address,
-    creator: resultRow.creator,
-    timeOfCreation: resultRow.created_at,
-    currentOwner: resultRow.current_owner,
-    description: resultRow.description,
-    chainOfCustody: parseChainOfCustody(resultRow.chain_of_custody),
-    isActive: resultRow.status === "active" ? true : false,
-    timeOfDiscontinuation: resultRow.discontinued_at,
+    ...result.rows[0],
+    chainOfCustody: parseChainOfCustody(result.rows[0].chain_of_custody),
   };
 }
 
+/**
+ *
+ * @dev postgres returns bigint as string values
+ *
+ */
 export async function fetchEvidencesByAccount(
   account: Address,
 ): Promise<SocketEvidenceDetails[]> {
   const result = await query(
     `
-     SELECT id, status, description, creator, created_at as "createdAt", current_owner as "currentOwner"
+     SELECT id, status, description, creator, current_owner AS "currentOwner", created_at AS "createdAt", transferred_at AS "transferredAt", discontinued_at AS "discontinuedAt"
      FROM evidence
      WHERE creator = $1 OR current_owner = $1
-     ORDER BY updated_at DESC
+     ORDER BY created_at DESC
     `,
     [account.toLowerCase()],
   );
   return result.rows;
 }
-
-// /**
-//  *
-//  * @param account
-//  * @param statusFilter i. active: evidences active only,
-//  *                     ii. owned: evidences discontinued/archived only,
-//  *                     iii. all: active or discontinued
-//  * @param roleFilter i. created: evidences created by account, initially creator == current_owner.
-//  *                   ii. owned: evidences owned by account, initially creator == current_owner.
-//  *                   iii. all: evidences either owned or created. (all the evidences this account is involved in)
-//  * @returns array of evidence details
-//  */
-// export async function fetchEvidencesByFilter(
-//   account: Address,
-//   status: StatusFilter = "all",
-//   role: RoleFilter = "all",
-// ): Promise<EvidenceRow[]> {
-//   const formattedAccount = account.toLowerCase();
-
-//   let sql = `
-//     SELECT evidence_id, status, description, creator, created_at, current_owner, updated_at
-//     FROM evidence
-//     WHERE
-//   `;
-//   const params: any[] = [];
-//   let paramIndex = 1;
-
-//   if (status !== "all") {
-//     sql += ` status = $${paramIndex}`;
-//     params.push(status);
-//     paramIndex++;
-//   } else {
-//     sql += ` (status = 'active' OR status = 'discontinued')`;
-//   }
-
-//   if (role === "created") {
-//     sql += ` AND creator = $${paramIndex}`;
-//     params.push(formattedAccount);
-//   } else if (role === "owned") {
-//     sql += ` AND current_owner = $${paramIndex}`;
-//     params.push(formattedAccount);
-//   } else {
-//     sql += ` AND (creator = $${paramIndex} OR current_owner = $${paramIndex})`;
-//     params.push(formattedAccount);
-//   }
-
-//   try {
-//     const result = await query(sql, params);
-//     return result.rows;
-//   } catch (error) {
-//     console.error("Error fetching evidences:", error);
-//     throw new Error("Failed to fetch evidences");
-//   }
-// }

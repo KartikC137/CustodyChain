@@ -2,7 +2,14 @@
 
 import type React from "react";
 
-type ButtonVariant = "primary" | "secondary" | "warning" | "alert";
+type ButtonVariant =
+  | "base"
+  | "add"
+  | "delete"
+  | "primary"
+  | "secondary"
+  | "warning"
+  | "alert";
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
@@ -12,7 +19,7 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 export default function Button({
-  variant = "primary",
+  variant = "base",
   isLoading = false,
   loadingText = "Processing...",
   children,
@@ -21,17 +28,21 @@ export default function Button({
   ...props
 }: ButtonProps) {
   const baseStyles =
-    "px-4 py-3 text-lg font-bold rounded focus:outline-none focus:ring-2 focus:ring-offset-2 transition ease-in-out duration-150 disabled:opacity-50 disabled:cursor-not-allowed";
+    "focus:outline-none focus:ring-2 focus:ring-offset-2 transition ease-in-out duration-150 disabled:opacity-50 disabled:cursor-not-allowed";
 
   const variantStyles: Record<ButtonVariant, string> = {
+    base: "",
+    add: "text-green-900 border-2 border-green-900 bg-green-100 hover:text-green-50 hover:bg-green-600 hover:font-bold",
+    delete:
+      "border-2 border-red-600 bg-red-400 hover:bg-red-600 hover:font-bold",
     primary:
-      "text-white border-2 border-blue-700 hover:border-blue-900 bg-blue-500 hover:bg-blue-700 focus:ring-blue-500",
+      "rounded px-4 py-3 font-bold  text-white border-2 border-blue-700 hover:border-blue-900 bg-blue-500 hover:bg-blue-700 focus:ring-blue-500",
     secondary:
-      "text-white border-2 border-gray-700 hover:border-gray-900 bg-gray-500 hover:bg-gray-700 focus:ring-gray-500",
+      "rounded px-4 py-3 font-bold  text-orange-700 border-2 border-orange-700 hover:bg-orange-500 bg-orange-50 focus:ring-orange-500",
     warning:
-      "text-white border-2 border-yellow-700 hover:border-yellow-900 bg-yellow-500 hover:bg-yellow-700 focus:ring-yellow-500",
+      "rounded px-4 py-3 font-bold  text-white border-2 border-yellow-700 hover:border-yellow-900 bg-yellow-500 hover:bg-yellow-700 focus:ring-yellow-500",
     alert:
-      "text-white border-2 border-red-700 hover:border-red-700 bg-red-500 hover:bg-red-700 focus:ring-red-500",
+      "rounded px-4 py-3 font-bold text-white border-2 border-red-700 hover:border-red-700 bg-red-500 hover:bg-red-700 focus:ring-red-500",
   };
 
   const combinedClassName = `${baseStyles} ${variantStyles[variant]} ${

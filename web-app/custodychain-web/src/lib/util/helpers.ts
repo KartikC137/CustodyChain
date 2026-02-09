@@ -1,7 +1,13 @@
 import { AddressSchema, Bytes32Schema } from "../types/solidity.types";
 
-export const bigIntToDate = (rawTimeStamp: bigint) => {
+// update it to auto handle string input as well
+export const bigintToDateWithTimeStamp = (rawTimeStamp: bigint) => {
   return new Date(Number(rawTimeStamp) * 1000);
+};
+
+export const bigIntToIsoDate = (rawTimeStamp: bigint) => {
+  const date = new Date(Number(rawTimeStamp) * 1000);
+  return date.toISOString().split("T")[0];
 };
 
 export const parseChainOfCustody = (rawChainOfCustody: string) => {

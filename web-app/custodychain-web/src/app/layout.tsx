@@ -28,12 +28,15 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`h-screen p-4 flex flex-col grid grid-cols-[0.8fr_2fr] overflow-hidden ${monsterrat.variable} antialiased`}
+        className={`h-screen overflow-hidden p-4 grid grid-cols-[0.8fr_2fr] ${monsterrat.variable} antialiased
+        *:overflow-hidden
+        `}
       >
         <Web3Provider>
           <EvidenceProvider>
             <ActivityProvider>
-              <div className="pr-4 space-y-2 grid grid-rows-[auto_auto_1fr]">
+              {/* Side bar */}
+              <div className="mr-4 space-y-2 grid grid-rows-[auto_auto_1fr]">
                 <div className="p-5 rounded-md font-mono font-semibold bg-green-100 border-2 border-green-700">
                   <Link
                     href="/"
@@ -48,9 +51,10 @@ export default function RootLayout({
                 <Navbar />
                 <ActivityPanel />
               </div>
+
               <div
                 id="evidence-container"
-                className="h-full px-8 pt-8 space-y-5 rounded-md bg-orange-50 border-2 border-orange-700"
+                className="relative h-full overflow-hidden  rounded-md bg-orange-50 border-2 border-orange-700"
               >
                 {children}
               </div>

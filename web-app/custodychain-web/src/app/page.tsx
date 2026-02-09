@@ -1,5 +1,7 @@
-import FetchEvidenceForm from "@/src/components/features/forms/FetchEvidenceForm";
-
 export default function Home() {
-  return <FetchEvidenceForm />;
+  return (
+    <div className="font-mono text-center text-orange-700 text-5xl">
+      Hello Digital forensics hooman, create and manage your evidences here!
+    </div>
+  );
 }

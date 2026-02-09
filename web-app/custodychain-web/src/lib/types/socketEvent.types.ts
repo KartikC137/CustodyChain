@@ -1,24 +1,18 @@
 import { z } from "zod";
 import { AddressSchema, Bytes32Schema } from "./solidity.types";
+import { BaseEvidenceSchema } from "./evidence.types";
 
 /**
- * @dev socket emits cannot handle bigint, the createdAt and updatedAt are strings.
+ * @dev 1. socket emits cannot handle bigint, the createdAt and updatedAt are strings.
+ *      2. Adds one more
  */
-const SocketEvidenceDetailsSchema = z.object({
-  id: Bytes32Schema,
-  status: z.enum(["active", "discontinued"]),
-  description: z.string(),
-  creator: AddressSchema,
-  createdAt: z.string(),
-  currentOwner: AddressSchema,
-});
 
 const BaseSocketUpdateSchema = z.object({
   activityId: z.string(),
   type: z.enum(["create", "transfer", "discontinue"]),
   actor: AddressSchema,
   txHash: Bytes32Schema.nullable(),
-  updatedAt: z.string(),
+  updatedAt: z.coerce.date(),
 });
 
 const FailedVariant = BaseSocketUpdateSchema.extend({
@@ -33,10 +27,10 @@ const FailedVariant = BaseSocketUpdateSchema.extend({
 
 const ValidVariant = BaseSocketUpdateSchema.extend({
   status: z.literal("client_only"),
-  evidence: SocketEvidenceDetailsSchema,
+  evidence: BaseEvidenceSchema,
 });
 
 export const SocketUpdateSchema = z.union([FailedVariant, ValidVariant]);
 
-export type SocketEvidenceDetails = z.infer<typeof SocketEvidenceDetailsSchema>;
+export type SocketEvidenceDetails = z.infer<typeof BaseEvidenceSchema>;
 export type SocketUpdateType = z.infer<typeof SocketUpdateSchema>;

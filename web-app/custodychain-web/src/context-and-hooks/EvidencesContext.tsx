@@ -37,7 +37,6 @@ export function EvidenceProvider({ children }: { children: ReactNode }) {
     setIsLoadingEvidences(true);
     try {
       const data = await fetchEvidencesByAccount(account);
-      console.info("-------------fetched evidences from DB------------", data);
       setEvidences(data);
     } catch (e) {
       console.error(e);
@@ -51,7 +50,6 @@ export function EvidenceProvider({ children }: { children: ReactNode }) {
   }, [account]);
 
   const insertEvidence = async (evidence: SocketEvidenceDetails) => {
-    console.info("-----------evidence inserted", evidence);
     setEvidences((prev) => [evidence, ...prev]);
   };
 
@@ -59,10 +57,6 @@ export function EvidenceProvider({ children }: { children: ReactNode }) {
     evidence: SocketEvidenceDetails,
     type: ActivityTypeType,
   ) => {
-    console.info("-----------updating evidence for", {
-      Type: type,
-      Evidence: evidence,
-    });
     if (type === "transfer") {
       setEvidences((prev) => {
         const index = prev.findIndex((e) => e.id === evidence.id);
@@ -71,10 +65,11 @@ export function EvidenceProvider({ children }: { children: ReactNode }) {
         newArray[index] = {
           ...newArray[index],
           currentOwner: evidence.currentOwner,
+          transferredAt: evidence.transferredAt,
         };
         return newArray;
       });
-    } else if (type === "discontinue") {
+    } else if (type === "discontinue" && evidence.status === "discontinued") {
       setEvidences((prev) => {
         const index = prev.findIndex((e) => e.id === evidence.id);
         if (index === -1) return prev;
@@ -82,6 +77,7 @@ export function EvidenceProvider({ children }: { children: ReactNode }) {
         newArray[index] = {
           ...newArray[index],
           status: "discontinued",
+          discontinuedAt: evidence.discontinuedAt,
         };
         return newArray;
       });
@@ -92,7 +88,6 @@ export function EvidenceProvider({ children }: { children: ReactNode }) {
 
   // only removes evidence if account is not the creator as well
   const removeEvidence = async (evidenceId: Bytes32) => {
-    console.info("-----------evidence removed", evidenceId);
     setEvidences((prev) => {
       const index = prev.findIndex((e) => e.id === evidenceId);
       if (index === -1) return prev;

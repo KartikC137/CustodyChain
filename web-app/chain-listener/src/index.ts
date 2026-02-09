@@ -60,6 +60,7 @@ async function main() {
       const blockNumber = data.blockNumber ? BigInt(data.blockNumber) : null;
 
       try {
+        //@todo pass raw data here later on, or parse it using zod beforehand
         await validateActivity(
           evidenceId,
           activityId,

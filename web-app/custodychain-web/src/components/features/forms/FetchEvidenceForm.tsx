@@ -56,23 +56,23 @@ export default function FetchEvidenceForm() {
       }
       // Panel
       const pendingActivity: ActivityInfoForPanel = {
-        id: BigInt("-1"),
+        id: "-1",
         status: "client_only",
         type: "fetch",
         actor: account as Address,
         owner: account as Address,
-        tx_hash: null,
-        updated_at: null,
-        evidence_id: evidenceId as `0x${string}`,
+        txHash: null,
+        updatedAt: new Date(),
+        evidenceId: evidenceId as `0x${string}`,
       };
       addPendingActivity(pendingActivity);
       // DB
       await insertClientActivity({
-        contractAddress: contract as Address,
         evidenceId: evidenceId as `0x${string}`,
         actor: account as Address,
+        owner: account as Address,
         type: "fetch",
-        txHash: undefined,
+        initializedAt: new Date(),
       });
       router.push(`/evidence/${evidenceId}`);
       setEvidenceId("");
@@ -113,6 +113,7 @@ export default function FetchEvidenceForm() {
           variant="primary"
           isLoading={isLoading}
           loadingText="Fetching Evidence Details..."
+          className="text-xl"
           disabled={!!error || !evidenceId || hashStatus !== "valid"}
         >
           Fetch Evidence Details

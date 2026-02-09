@@ -167,7 +167,7 @@ export default function CreateEvidenceForm() {
         Create Evidence
       </p>
       <div className={`grid grid-cols-[1fr_0.5fr] gap-x-3 items-start`}>
-        <form onSubmit={handleSubmit} className="grid gap-3">
+        <form onSubmit={handleSubmit} className="grid gap-y-3">
           <div className="pl-1 pt-1 font-mono font-semibold text-2xl text-red-600">
             {error}
           </div>
@@ -201,6 +201,7 @@ export default function CreateEvidenceForm() {
             variant="primary"
             isLoading={isLoading}
             loadingText="Creating Evidence..."
+            className="text-xl"
             disabled={
               !!error ||
               hashStatus !== "valid" ||

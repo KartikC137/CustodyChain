@@ -15,7 +15,7 @@ type clientStatus = "client_only" | "pending";
 export async function insertClientActivity(input: ActivityInputType) {
   const result = ActivityInputSchema.safeParse(input);
   if (!result.success) {
-    console.log("insert clien: ", result.error);
+    console.log("insert client: ", result.error);
     throw new Error("invalid activity");
   }
   const safeInput = result.data;

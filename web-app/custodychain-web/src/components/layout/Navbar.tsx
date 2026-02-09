@@ -25,9 +25,9 @@ export default function Navbar() {
   return (
     <nav className="p-3 space-y-1 rounded-md text-lg font-[500] font-mono border-2 text-orange-900 border-orange-700 bg-orange-50">
       <Link
-        href="/"
+        href="/fetch"
         className={`${baseLinkStyle} ${
-          pathname === "/" ? activeLinkStyle : hoverLinkStyle
+          pathname === "/fetch" ? activeLinkStyle : hoverLinkStyle
         }`}
       >
         FETCH EVIDENCE

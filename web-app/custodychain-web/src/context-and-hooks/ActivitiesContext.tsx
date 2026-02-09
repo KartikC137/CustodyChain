@@ -12,8 +12,11 @@ import { ActivityInfoForPanel } from "../lib/types/activity.types";
 import { useWeb3 } from "./Web3Context";
 import { useEvidences } from "./EvidencesContext";
 import { fetchActivitiesForPanel } from "../api/activities/fetchActivities";
-import { SocketUpdateType } from "../lib/types/socketEvent.types";
-import { bigIntToDate } from "../lib/util/helpers";
+import {
+  SocketUpdateSchema,
+  SocketUpdateType,
+} from "../lib/types/socketEvent.types";
+import { bigintToDateWithTimeStamp } from "../lib/util/helpers";
 
 interface ActivityContextType {
   activities: ActivityInfoForPanel[];
@@ -46,6 +49,7 @@ export function ActivityProvider({ children }: { children: ReactNode }) {
         return;
       }
       const data = await fetchActivitiesForPanel(account);
+      console.log("Fetch activities", data);
       setActivities(data);
     } catch (err) {
       console.error("Failed to fetch activities", err);
@@ -62,8 +66,40 @@ export function ActivityProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const socket = getSocket();
 
-    const handleUpdate = (update: SocketUpdateType) => {
-      console.info("Socket Update Received:", update);
+    const handleUpdate = (rawUpdate: any) => {
+      const result = SocketUpdateSchema.safeParse(rawUpdate);
+      if (!result.success) {
+        console.info("parse error", result.error);
+        return;
+      } // maybe throw here
+      const update = result.data;
+      console.info("Socket Update Parsed:", update);
+
+      setActivities((prev) => {
+        const targetIndex = prev.findIndex(
+          (act) =>
+            act.status === "pending" &&
+            update.txHash &&
+            act.txHash &&
+            act.txHash.toLowerCase() === update.txHash,
+        );
+        if (targetIndex === -1) {
+          console.info("activity not found");
+          return prev;
+        }
+        const newActivities = [...prev];
+        newActivities[targetIndex] = {
+          ...newActivities[targetIndex],
+          id: update.activityId,
+          status: update.status,
+          txHash: update.txHash,
+          updatedAt: update.updatedAt,
+          error: update.status === "failed" ? update.error : undefined,
+        };
+        console.info("activity Updated to client_only");
+
+        return newActivities;
+      });
 
       if (update.status === "client_only") {
         if (update.type === "create") {
@@ -77,7 +113,7 @@ export function ActivityProvider({ children }: { children: ReactNode }) {
                 type: "transfer",
                 status: "client_only",
                 txHash: update.txHash,
-                updatedAt: bigIntToDate(BigInt(update.updatedAt)),
+                updatedAt: update.updatedAt,
                 actor: update.actor,
                 evidenceId: update.evidence.id,
                 owner: update.evidence.currentOwner,
@@ -98,27 +134,6 @@ export function ActivityProvider({ children }: { children: ReactNode }) {
           updateEvidence(update.evidence, "discontinue");
         }
       }
-
-      setActivities((prev) =>
-        prev.map((act) => {
-          if (act.status === "pending") {
-            const isHashMatch =
-              update.txHash &&
-              (act.txHash as string).toLowerCase() === update.txHash;
-            if (isHashMatch) {
-              return {
-                ...act,
-                id: update.activityId,
-                status: update.status,
-                txHash: update.txHash,
-                updatedAt: bigIntToDate(BigInt(update.updatedAt)),
-                error: update.status === "failed" ? update.error : undefined,
-              };
-            }
-          }
-          return act;
-        }),
-      );
     };
 
     socket.on("activity_update", handleUpdate);

@@ -7,9 +7,12 @@ import { evidenceLedgerAbi } from "../lib/contracts/evidence-ledger-abi";
 import { evidenceLedgerAddress } from "../lib/contracts/evidence-ledger-address";
 import { useWeb3 } from "./Web3Context";
 import { Bytes32 } from "@/src/lib/types/solidity.types";
-import { EvidenceDetails, CustodyRecord } from "@/src/lib/types/evidence.types";
+import {
+  EvidenceDetails,
+  CustodyRecord,
+  EvidenceDetailsSchema,
+} from "@/src/lib/types/evidence.types";
 import { fetchSingleEvidence } from "../api/evidences/fetchEvidence";
-import { bigIntToDate } from "../lib/util/helpers";
 
 /**
  * @notice Primarily fetches data from DB but chain of custody requires , fallback is rpc calls to the contract.
@@ -40,14 +43,14 @@ export default function useFetchSingleEvidence(evidenceId: Bytes32) {
 
       try {
         const dbData = await fetchSingleEvidence(idToFetch as `0x${string}`);
-
-        if (dbData) {
-          setEvidenceDetails(dbData);
-          setDataSource("DB");
-          setIsLoading(false);
-          fetchInFlightRef.current = null;
-          return;
-        }
+        const result = EvidenceDetailsSchema.safeParse(dbData);
+        if (!result.success) throw new Error("invalid data from db received");
+        const evidence = result.data;
+        setEvidenceDetails(evidence);
+        setDataSource("DB");
+        setIsLoading(false);
+        fetchInFlightRef.current = null;
+        return;
       } catch (dbErr) {
         console.warn("DB Fetch failed, falling back to blockchain...", dbErr);
       }
@@ -71,16 +74,16 @@ export default function useFetchSingleEvidence(evidenceId: Bytes32) {
           setIsLoading(false);
           return;
         }
-
+        //todo pack it in one object on contract and coerce using zod
         const [
           id,
-          creator,
-          timeOfCreation,
-          currentOwner,
-          description,
-          chainOfCustody,
           isActive,
-          timeOfDiscontinuation,
+          description,
+          creator,
+          currentOwner,
+          createdAt,
+          chainOfCustody,
+          discontinuedAt,
         ] = await Promise.all([
           publicClient.readContract({
             address: contractAddress,
@@ -90,7 +93,22 @@ export default function useFetchSingleEvidence(evidenceId: Bytes32) {
           publicClient.readContract({
             address: contractAddress,
             abi: evidenceAbi,
+            functionName: "getEvidenceState",
+          }) as Promise<boolean>,
+          publicClient.readContract({
+            address: contractAddress,
+            abi: evidenceAbi,
+            functionName: "getEvidenceDescription",
+          }) as Promise<string>,
+          publicClient.readContract({
+            address: contractAddress,
+            abi: evidenceAbi,
             functionName: "getEvidenceCreator",
+          }) as Promise<Address>,
+          publicClient.readContract({
+            address: contractAddress,
+            abi: evidenceAbi,
+            functionName: "getCurrentOwner",
           }) as Promise<Address>,
           publicClient.readContract({
             address: contractAddress,
@@ -100,40 +118,28 @@ export default function useFetchSingleEvidence(evidenceId: Bytes32) {
           publicClient.readContract({
             address: contractAddress,
             abi: evidenceAbi,
-            functionName: "getCurrentOwner",
-          }) as Promise<Address>,
-          publicClient.readContract({
-            address: contractAddress,
-            abi: evidenceAbi,
-            functionName: "getEvidenceDescription",
-          }) as Promise<string>,
-          publicClient.readContract({
-            address: contractAddress,
-            abi: evidenceAbi,
             functionName: "getChainOfCustody",
           }) as Promise<CustodyRecord[]>,
-          publicClient.readContract({
-            address: contractAddress,
-            abi: evidenceAbi,
-            functionName: "getEvidenceState",
-          }) as Promise<boolean>,
           publicClient.readContract({
             address: contractAddress,
             abi: evidenceAbi,
             functionName: "getTimeOfDiscontinuation",
           }) as Promise<bigint>,
         ]);
-        // dates are type bigint (uint) on contract, needs formatting
+        const status = isActive ? "active" : "discontinued";
+        const transferredAt =
+          chainOfCustody[chainOfCustody.length - 1].timestamp;
         setEvidenceDetails({
           id,
-          contractAddress,
-          creator,
-          timeOfCreation: timeOfCreation,
-          currentOwner,
+          status,
           description,
+          creator,
+          currentOwner,
+          createdAt,
+          transferredAt,
+          contractAddress,
           chainOfCustody,
-          isActive,
-          timeOfDiscontinuation: timeOfDiscontinuation,
+          discontinuedAt,
         });
         setDataSource("BLOCKCHAIN");
       } catch (err) {

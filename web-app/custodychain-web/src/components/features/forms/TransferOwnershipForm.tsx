@@ -20,7 +20,7 @@ import { validAddressCheck } from "@/src/lib/util/helpers";
 interface TransferOwnershipFormProps {
   creator: Address;
   contractAddress: Address;
-  isActive: boolean;
+  status: "active" | "discontinued";
   currentOwner: Address;
   evidenceId: Bytes32;
   onTransferFormSuccess: (success: boolean) => void;
@@ -29,7 +29,7 @@ interface TransferOwnershipFormProps {
 export default function TransferOwnershipForm({
   creator,
   contractAddress,
-  isActive,
+  status,
   currentOwner,
   evidenceId,
   onTransferFormSuccess,
@@ -63,7 +63,7 @@ export default function TransferOwnershipForm({
       return;
     }
 
-    if (!isActive) {
+    if (status !== "active") {
       setError("This evidence is not active!");
       onTransferFormSuccess(false);
       return;

@@ -1,15 +1,15 @@
 import { useState } from "react";
 import { CustodyRecord } from "@/src/lib/types/evidence.types";
-import { bigIntToDate } from "@/src/lib/util/helpers";
+import { bigintToDateWithTimeStamp } from "@/src/lib/util/helpers";
 
 interface ChainOfCustodyViewerProps {
   chainOfCustody: CustodyRecord[];
-  isActive: boolean;
+  status: "active" | "discontinued";
 }
 
 export default function ChainOfCustodyViewer({
   chainOfCustody,
-  isActive,
+  status,
 }: ChainOfCustodyViewerProps) {
   const [activeTab, setActiveTab] = useState<"list" | "timeline">("timeline");
 
@@ -74,7 +74,7 @@ export default function ChainOfCustodyViewer({
                 <div key={key} className="flex flex-col items-center">
                   <div className="relative p-2 font-mono font-semibold rounded-sm border-2 border-orange-700 bg-orange-50 shadow-sm">
                     <h3 className="text-green-800">
-                      {isActive
+                      {status === "active"
                         ? index === 0 && isLastItem
                           ? "Creator / Current Owner"
                           : index === 0
@@ -94,7 +94,9 @@ export default function ChainOfCustodyViewer({
                       {index + 1}
                     </div>
                     <time className="text-orange-900 block leading-none">
-                      {bigIntToDate(record.timestamp).toLocaleString()}
+                      {bigintToDateWithTimeStamp(
+                        record.timestamp,
+                      ).toLocaleString()}
                     </time>
                     <p className="text-orange-900 break-all">{record.owner}</p>
                   </div>

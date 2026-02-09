@@ -18,7 +18,7 @@ import { Bytes32 } from "@/src/lib/types/solidity.types";
 interface DiscontinueEvidenceProps {
   contractAddress: Address;
   evidenceId: Bytes32;
-  isActive: boolean;
+  status: "active" | "discontinued";
   creator: Address;
   onDiscontinueFormSuccess: (success: boolean) => void;
 }
@@ -26,7 +26,7 @@ interface DiscontinueEvidenceProps {
 export default function DiscontinueEvidence({
   contractAddress,
   evidenceId,
-  isActive,
+  status,
   creator,
   onDiscontinueFormSuccess,
 }: DiscontinueEvidenceProps) {
@@ -44,7 +44,7 @@ export default function DiscontinueEvidence({
       return;
     }
 
-    if (!isActive) {
+    if (status === "discontinued") {
       setError("This evidence is already discontinued!");
       onDiscontinueFormSuccess(false);
       return;

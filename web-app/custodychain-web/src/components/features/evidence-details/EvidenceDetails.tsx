@@ -40,26 +40,22 @@ export default function EvidenceDetails({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 px-8 pt-8">
       <EvidenceSummary
         source={dataSource}
         id={evidenceDetails.id}
-        isActive={evidenceDetails.isActive}
+        status={evidenceDetails.status}
         description={evidenceDetails.description}
         creator={evidenceDetails.creator}
-        timeOfCreation={evidenceDetails.timeOfCreation}
         currentOwner={evidenceDetails.currentOwner}
-        currentOwnerTime={
-          evidenceDetails.chainOfCustody[
-            evidenceDetails.chainOfCustody.length - 1
-          ].timestamp
-        }
-        timeOfDiscontinuation={evidenceDetails.timeOfDiscontinuation}
+        createdAt={evidenceDetails.createdAt}
+        transferredAt={evidenceDetails.transferredAt}
+        discontinuedAt={evidenceDetails.discontinuedAt}
       />
       <div
         className={`grid gap-8
           ${
-            evidenceDetails.isActive &&
+            evidenceDetails.status === "active" &&
             (evidenceDetails.creator.toLowerCase() === account ||
               evidenceDetails.currentOwner.toLowerCase() === account)
               ? "grid-cols-[1.3fr_1fr]"
@@ -68,53 +64,20 @@ export default function EvidenceDetails({
       >
         <ChainOfCustodyViewer
           chainOfCustody={evidenceDetails.chainOfCustody}
-          isActive={evidenceDetails.isActive}
+          status={evidenceDetails.status}
         />
-        {evidenceDetails.isActive && (
+        {evidenceDetails.status === "active" && (
           <EvidenceManager
             id={evidenceDetails.id}
             currentAccount={account}
             contractAddress={evidenceDetails.contractAddress}
-            isActive={evidenceDetails.isActive}
+            status={evidenceDetails.status}
             creator={evidenceDetails.creator}
             currentOwner={evidenceDetails.currentOwner}
             onManagementSuccess={handleUpdateSuccess}
           />
         )}
       </div>
-
-      {/* LOGS */}
-
-      {/* {transferResult?.hash && (
-        <div className="p-2 text-sm text-green-700 bg-green-100 rounded">
-          Ownership Transferred. Tx. Hash: {transferResult.hash}
-        </div>
-      )}
-      {discontinueResult?.hash && (
-        <div className="p-2 text-sm text-green-700 bg-green-100 rounded">
-          Evidence is now Discontinued. Tx. Hash: {discontinueResult.hash}
-        </div>
-      )}
-      {transferResult?.warning && (
-        <div className="p-2 text-sm text-orange-700 bg-orange-100 rounded">
-          Warning: {transferResult.warning}
-        </div>
-      )}
-      {discontinueResult?.warning && (
-        <div className="p-2 text-sm text-orange-700 bg-orange-100 rounded">
-          Warning: {discontinueResult.warning}
-        </div>
-      )}
-      {transferResult?.error && (
-        <div className="p-2 text-sm text-red-700 bg-red-100 rounded">
-          Error: {transferResult.error}
-        </div>
-      )}
-      {discontinueResult?.error && (
-        <div className="p-2 text-sm text-orange-700 bg-orange-100 rounded">
-          Error: {discontinueResult.error}
-        </div>
-      )} */}
     </div>
   );
 }

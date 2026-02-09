@@ -133,6 +133,7 @@ contract Evidence {
         isActive = false;
     }
 
+    //to wrap evidence info in one object
     // Public & External Functions View Functions
     function getNonce() external view returns (uint256) {
         return NONCE;

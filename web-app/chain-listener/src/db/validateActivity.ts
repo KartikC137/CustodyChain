@@ -15,7 +15,6 @@ import {
   event_OwnershipTransferred,
   event_EvidenceDiscontinued,
 } from "../lib/abi/evidence-ledger-abi.js";
-import { bigIntToTimeStamp } from "./acitivtyHelpers.js";
 import { ActivityTypeType } from "../lib/types/activity.types.js";
 import { SocketEvidenceDetails } from "../lib/types/evidence.types.js";
 
@@ -27,7 +26,7 @@ export type clientStatus = "client_only" | "failed";
  *       3. checks the events and matches with contract abi
  *       4. inserts/updates evidences in evidence table
  *       5. updates activity to client_only if no error/ to failed if error
- *       6. emits socket event on update with necessary info
+ * @notice SOCKET EMIT CANNOT PARSE BIGINT
  * @todo 1. emit socket event here to handle db failures
  *       2. maybe fallback if evidence does it not exist on chain.
  *       3. do some more receipt checks, make it robust
@@ -41,9 +40,8 @@ export async function validateActivity(
   blockNumber: bigint | null,
 ): Promise<void> {
   const io = getIO();
-  let updatedAt: bigint;
   const recipients = new Set<string>();
-  // making sure
+  //@todo use zod to parse inputs here
   actor = actor.toLowerCase() as Address;
   try {
     if (!activityId) {
@@ -88,6 +86,7 @@ export async function validateActivity(
       if (eventLogs.length === 0) throw new Error("missing create event");
       const args = eventLogs[0].args;
       const creator = args.creator.toLowerCase() as Address;
+      const time = args.timeOfCreation.toString();
       if (creator !== actor) throw new Error("invalid creator");
       await insertNewEvidence(
         args.metadataHash,
@@ -104,10 +103,10 @@ export async function validateActivity(
         status: "active",
         description: args.desc,
         creator: creator,
-        createdAt: args.timeOfCreation.toString(),
         currentOwner: creator,
+        createdAt: time,
+        transferredAt: time,
       };
-      updatedAt = args.timeOfCreation;
     } else if (type === "transfer") {
       const eventLogs = parseEventLogs({
         abi: event_OwnershipTransferred,
@@ -129,10 +128,10 @@ export async function validateActivity(
         status: "active",
         description: result.desc,
         creator: result.creator,
-        createdAt: result.createdAt.toString(),
         currentOwner: newOwner,
+        createdAt: result.createdAt.toString(),
+        transferredAt: args.timeOfTransfer.toString(),
       };
-      updatedAt = args.timeOfTransfer;
       recipients.add(newOwner);
     } else if (type === "discontinue") {
       const eventLogs = parseEventLogs({
@@ -154,22 +153,23 @@ export async function validateActivity(
         status: "discontinued",
         description: result.desc,
         creator: result.creator,
-        createdAt: result.createdAt.toString(),
         currentOwner: currentOwner,
+        createdAt: result.createdAt.toString(),
+        transferredAt: result.transferredAt.toString(),
+        discontinuedAt: args.timeOfDiscontinuation.toString(),
       };
-      updatedAt = args.timeOfDiscontinuation;
       recipients.add(currentOwner);
     } else {
       throw new Error(`invalid activity: ${type}`);
     }
-    await updateActivityForClient(
+    const updatedAt = await updateActivityForClient(
       activityId,
       "client_only",
       txHash,
       receipt.blockNumber,
-      bigIntToTimeStamp(updatedAt),
     );
-    // emit the event to recipients
+
+    // Socket emit to recipients
     io.to(Array.from(recipients)).emit("activity_update", {
       activityId: activityId.toString(),
       actor: actor,
@@ -180,12 +180,11 @@ export async function validateActivity(
       evidence,
     });
   } catch (err) {
-    updatedAt = await updateActivityForClient(
+    const updatedAt = await updateActivityForClient(
       activityId,
       "failed",
       txHash,
       blockNumber,
-      undefined,
       String(err),
     );
     io.to(actor).emit("activity_update", {
@@ -195,7 +194,7 @@ export async function validateActivity(
       status: "failed",
       txHash: txHash ? txHash.toLowerCase() : null,
       updatedAt: updatedAt,
-      evidenceId: evidenceId, // in case txHash is missing
+      evidenceId: evidenceId,
       error: err,
     });
     console.warn(`Emitted Socket Event: "activity_update failed"`, {
@@ -206,15 +205,14 @@ export async function validateActivity(
   }
 }
 
-// only returns update_at if activity failed
 async function updateActivityForClient(
   activityId: bigint,
   status: clientStatus,
   txHash: Bytes32 | null,
   blockNumber: bigint | null,
-  preferUpdatedAt?: Date,
   error?: string,
-) {
+): Promise<Date> {
+  let updatedAt;
   try {
     if (status === "failed") {
       const result = await query(
@@ -240,25 +238,27 @@ async function updateActivityForClient(
           activityId.toString(),
         ],
       );
-      return result.rows[0].updated_at;
+      updatedAt = result.rows[0].updated_at;
     } else if (status === "client_only" && txHash) {
-      await query(
+      const result = await query(
         `
       UPDATE activity
       SET status = 'client_only',
           tx_hash = $1,
           block_number = $2,
-          updated_at = COALESCE($4, NOW())
+          updated_at = now()
       WHERE id = $3
+      RETURNING updated_at
       `,
         [
           txHash.toLowerCase(),
           blockNumber ? blockNumber.toString() : null,
           activityId.toString(),
-          preferUpdatedAt || null,
         ],
       );
+      updatedAt = result.rows[0].updated_at;
     }
+    return updatedAt;
   } catch (err) {
     console.error("updateActivityForClient: db error", err);
     throw new Error("db error");

@@ -25,17 +25,17 @@ export async function insertNewEvidence(
       contract_address,
       id,
       creator,
-      created_at,
       current_owner,
-      updated_at,
-      latest_tx_hash,
-      last_tx_block,
-      deployed_block,
+      created_at,
+      transferred_at,
       creation_tx_hash,
+      latest_tx_hash,
+      deployed_block,
+      last_tx_block,
       description,
       chain_of_custody
     )
-    VALUES ('active', $1, $2, $3, $4, $5, $6, $5, $7, $8, $9, $10, $11, ARRAY[ ($4, $5)::custody_record_t ])
+    VALUES ('active', $1, $2, $3, $4, $4, $5, $5, $6, $6, $7, $7, $8, ARRAY[ ($4, $5)::custody_record_t ])
     ON CONFLICT (id) DO NOTHING
     `,
       [
@@ -44,11 +44,8 @@ export async function insertNewEvidence(
         evidenceId.toLowerCase(),
         actor,
         timeOfCreation,
-        actor,
         creationTxHash.toLowerCase(),
         block,
-        block,
-        creationTxHash.toLowerCase(),
         desc,
       ],
     );
@@ -67,8 +64,8 @@ export async function updateTransferOwnership(
   timeOfTransfer: bigint,
 ): Promise<{
   createdAt: bigint;
-  desc: string;
   creator: Address;
+  desc: string;
 }> {
   try {
     const result = await query(
@@ -77,10 +74,10 @@ export async function updateTransferOwnership(
     SET current_owner = $1,
         latest_tx_hash = $2,
         last_tx_block = $3,
-        updated_at = $4,
+        transferred_at = $4,
         chain_of_custody = array_append(chain_of_custody, ($1, $4)::custody_record_t)
     WHERE id = $5
-    RETURNING created_at, description, creator
+    RETURNING created_at AS "createdAt", creator, description AS "desc"
     `,
       [
         currentOwner, // already lowercased in parent
@@ -91,11 +88,7 @@ export async function updateTransferOwnership(
       ],
     );
 
-    return {
-      createdAt: result.rows[0].created_at,
-      desc: result.rows[0].description,
-      creator: result.rows[0].creator,
-    };
+    return result.rows[0];
   } catch (err) {
     throw new Error("update evidence failed: db error");
   }
@@ -108,8 +101,9 @@ export async function updateEvidenceDiscontinued(
   timeOfDiscontinuation: bigint,
 ): Promise<{
   createdAt: bigint;
-  desc: string;
+  transferredAt: bigint;
   creator: Address;
+  desc: string;
 }> {
   try {
     const result = await query(
@@ -118,10 +112,9 @@ export async function updateEvidenceDiscontinued(
     SET status = 'discontinued',
         latest_tx_hash = $1,
         last_tx_block = $2,
-        discontinued_at = $3,
-        updated_at = $3
+        discontinued_at = $3
     WHERE id = $4
-    RETURNING created_at, description, creator
+    RETURNING created_at AS "createdAt", transferred_at AS "transferredAt", creator, description AS "desc"
     `,
       [
         latestTxHash.toLowerCase(),
@@ -131,12 +124,9 @@ export async function updateEvidenceDiscontinued(
       ],
     );
 
-    return {
-      createdAt: result.rows[0].created_at,
-      desc: result.rows[0].description,
-      creator: result.rows[0].creator,
-    };
+    return result.rows[0];
   } catch (err) {
+    console.error(err);
     throw new Error("update evidence failed: db error");
   }
 }

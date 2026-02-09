@@ -8,7 +8,7 @@ interface EvidenceManagerProps {
   currentAccount: Address;
   creator: Address;
   currentOwner: Address;
-  isActive: boolean;
+  status: "active" | "discontinued";
   onManagementSuccess: (success: boolean) => void;
 }
 
@@ -18,7 +18,7 @@ export default function EvidenceManager({
   currentAccount,
   creator,
   currentOwner,
-  isActive,
+  status,
   onManagementSuccess,
 }: EvidenceManagerProps) {
   function handleFormSuccess(success: boolean) {
@@ -37,7 +37,7 @@ export default function EvidenceManager({
         <TransferOwnershipForm
           creator={creator}
           contractAddress={contractAddress}
-          isActive={isActive as boolean}
+          status={status}
           currentOwner={currentOwner as Address}
           evidenceId={id as `0x${string}`}
           onTransferFormSuccess={handleFormSuccess}
@@ -48,7 +48,7 @@ export default function EvidenceManager({
         <DiscontinueEvidence
           contractAddress={contractAddress as Address}
           evidenceId={id as `0x${string}`}
-          isActive={isActive as boolean}
+          status={status}
           creator={creator as Address}
           onDiscontinueFormSuccess={handleFormSuccess}
         />

@@ -1,17 +1,18 @@
 import { EvidenceSummaryType } from "@/src/lib/types/evidence.types";
-import { bigIntToDate } from "@/src/lib/util/helpers";
+import { bigintToDateWithTimeStamp } from "@/src/lib/util/helpers";
 
 export default function EvidenceSummary({
-  source,
   id,
-  isActive,
+  status,
   description,
   creator,
-  timeOfCreation,
   currentOwner,
-  currentOwnerTime,
-  timeOfDiscontinuation,
+  createdAt,
+  transferredAt,
+  source,
+  discontinuedAt,
 }: EvidenceSummaryType) {
+  const isActive = status === "active" ? true : false;
   return (
     <div className="space-y-5">
       <p
@@ -32,14 +33,17 @@ export default function EvidenceSummary({
         </p>
         <p>
           Creator: <span className="text-orange-700">{creator}</span> @{" "}
-          {bigIntToDate(timeOfCreation).toLocaleString()}
+          {bigintToDateWithTimeStamp(createdAt).toLocaleString()}
           {!isActive &&
-            " to " + bigIntToDate(timeOfDiscontinuation).toLocaleString()}
+            " to " +
+              bigintToDateWithTimeStamp(
+                discontinuedAt as bigint,
+              ).toLocaleString()}
         </p>
         <p>
           {isActive ? "Current Owner: " : "Last Owner: "}
           <span className="text-orange-700">{currentOwner}</span> @{" "}
-          {bigIntToDate(currentOwnerTime).toLocaleString()}
+          {bigintToDateWithTimeStamp(transferredAt).toLocaleString()}
         </p>
       </div>
     </div>
