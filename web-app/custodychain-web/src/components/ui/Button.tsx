@@ -28,7 +28,7 @@ export default function Button({
   ...props
 }: ButtonProps) {
   const baseStyles =
-    "focus:outline-none focus:ring-2 focus:ring-offset-2 transition ease-in-out duration-150 disabled:opacity-50 disabled:cursor-not-allowed";
+    "focus:outline-none transition ease-in-out duration-150 disabled:opacity-50 disabled:cursor-not-allowed";
 
   const variantStyles: Record<ButtonVariant, string> = {
     base: "",

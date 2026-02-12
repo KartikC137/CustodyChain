@@ -7,7 +7,7 @@ import expandDown from "../../../public/icons/expand-down.svg";
 import none from "../../../public/icons/none.svg";
 import bin from "../../../public/icons/bin.svg";
 import Image from "next/image";
-import { useState } from "react";
+import { FormEvent, useState } from "react";
 import { useWeb3 } from "@/src/context-and-hooks/Web3Context";
 import { useEvidences } from "@/src/context-and-hooks/EvidencesContext";
 import { SocketEvidenceDetails } from "@/src/lib/types/socketEvent.types";
@@ -16,63 +16,98 @@ import {
   bigIntToIsoDate,
 } from "@/src/lib/util/helpers";
 import Link from "next/link";
+import { Temporal } from "@js-temporal/polyfill";
 
-type dateValueType = "CREATED" | "UPDATED";
-
-interface DateFilter {
-  created: string[];
-  updated: string[];
+const currentYear = new Date().getFullYear();
+let pastYear = 0;
+if (currentYear > 2026) {
+  pastYear = currentYear;
 }
-
+const quickDateFilters = {
+  Days: ["Today", "Yesterday", "Past 3 Days"],
+  Weeks: ["This Week", "Past Week", "Past 3 Weeks"],
+  Months: ["This Month", "Past Month", "Past 3 Months", "Past 6 Months"],
+  Years:
+    pastYear > 0
+      ? [pastYear, pastYear - 1, pastYear - 2, pastYear - 3]
+      : ["2026"],
+};
+type SortDateValueType = "CREATED" | "UPDATED";
+type statusFilterType = "All" | "Active" | "Discontinued";
+type QuickDateFilterType = "Days" | "Weeks" | "Months" | "Years";
+const quickDateFilterKey = ["Days", "Weeks", "Months", "Years"];
+const statusFilterKey = ["All", "Active", "Discontinued"];
+interface dateFilters {
+  range: string[]; // minDate,maxDate
+  distinct: string[]; // separate dates
+}
 export default function MyEvidencePage() {
   const [isTopHidden, setIsTopHidden] = useState<boolean>(false);
   //Filters
-  const [statusFilter, setStatusFilter] = useState<
-    "All" | "Active" | "Discontinued"
-  >("Active");
-  const [roleFilter, setRoleFilter] = useState<"All" | "Owned" | "Created">(
-    "All",
-  );
-  const [dateFilterType, setDatesFilterType] = useState<
-    "ALL" | "CREATED" | "TRANSFERRED" | "DISCONTINUED"
-  >("ALL");
-  const [datesFilter, setDatesFilter] = useState<DateFilter>({
-    created: [],
-    updated: [],
+  const [statusFilter, setStatusFilter] = useState<statusFilterType>("Active");
+  const [ownershipFilter, setRoleFilter] = useState<
+    "all" | "created" | "received" | "transferred"
+  >("all");
+  const [dateFilters, setDateFilters] = useState<dateFilters>({
+    range: [],
+    distinct: [],
   });
+  console.info("Dates filter set,", dateFilters);
+
   //Sort values
-  const [sortBy, setSortBy] = useState<dateValueType>("UPDATED");
+  const [sortBy, setSortBy] = useState<SortDateValueType>("UPDATED");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
   const { account } = useWeb3();
   const { evidences, isLoadingEvidences } = useEvidences();
 
-  const isStatusAndAccountfilterMatch = (e: SocketEvidenceDetails) =>
-    (statusFilter === "All"
-      ? e.status === "active" || e.status === "discontinued"
-      : e.status === statusFilter.toLowerCase()) &&
-    (roleFilter === "Created"
-      ? e.creator === account
-      : roleFilter === "Owned"
-        ? e.currentOwner === account
-        : e.creator === account || e.currentOwner === account);
+  // Filter and sort order:
+  // 1. status filter -> if discontinued and dates exist -> match discontinued and discontinuedAt
+  // 2. Ownership filter -> check dates filter on every type
+  // 3. sort on final filtered
+  const rLen = dateFilters.range.length;
+  const dLen = dateFilters.distinct.length;
+  const isStatusFilterMatch = (e: SocketEvidenceDetails) =>
+    statusFilter === "All"
+      ? e.status === "active" ||
+        (e.status === "discontinued" &&
+          isDatesFilterMatch(e.discontinuedAt as bigint))
+      : e.status === statusFilter.toLowerCase();
 
-  const isDatesFilterMatch = (e: SocketEvidenceDetails) => {
-    const updatedAt = e.discontinuedAt || e.transferredAt;
-    const isoCreated = bigIntToIsoDate(e.createdAt);
-    const isoUpdated = bigIntToIsoDate(updatedAt);
-    const matchesCreated =
-      datesFilter.created.length > 0 &&
-      datesFilter.created.includes(isoCreated);
-    const matchesUpdated =
-      datesFilter.updated.length > 0 &&
-      datesFilter.updated.includes(isoUpdated);
-    return matchesCreated || matchesUpdated;
+  const isOwnershipfilterMatch = (e: SocketEvidenceDetails) =>
+    ownershipFilter === "created"
+      ? e.creator === account && isDatesFilterMatch(e.createdAt)
+      : ownershipFilter === "received"
+        ? e.currentOwner === account &&
+          e.creator !== account &&
+          isDatesFilterMatch(e.transferredAt)
+        : ownershipFilter === "transferred"
+          ? e.currentOwner !== account && isDatesFilterMatch(e.createdAt)
+          : (e.creator === account && isDatesFilterMatch(e.createdAt)) ||
+            (e.currentOwner === account && isDatesFilterMatch(e.transferredAt));
+
+  // for ranges, check if date is after minDate and before maxDate (exclusive)
+  const isDatesFilterMatch = (rawDate: bigint) => {
+    const isoDate = bigIntToIsoDate(rawDate);
+    // empty arrays / invalid arrays = include all i.e return true
+    let distinctMatch = true;
+    let rangeMatch = true;
+    if (rLen === 2) {
+      rangeMatch =
+        isoDate >= dateFilters.range[0] && isoDate <= dateFilters.range[1];
+    }
+    if (dLen > 0) {
+      distinctMatch = dateFilters.distinct.some((d) => d === isoDate);
+    }
+    return distinctMatch && rangeMatch;
   };
-  const hasDates =
-    datesFilter.created.length > 0 || datesFilter.updated.length > 0;
-  // keeps original evidences list untouched
-  const sortedEvidences = evidences.slice().sort((a, b) => {
+
+  const filteredEvidences = evidences.filter(
+    (e) => isStatusFilterMatch(e) && isOwnershipfilterMatch(e),
+  );
+
+  // Sort evidences
+  const sortedEvidences = filteredEvidences.sort((a, b) => {
     const aUpdatedAt = a.discontinuedAt || a.transferredAt;
     const bUpdatedAt = b.discontinuedAt || b.transferredAt;
 
@@ -86,113 +121,351 @@ export default function MyEvidencePage() {
     }
   });
 
-  const filteredEvidences = hasDates
-    ? sortedEvidences.filter(
-        (e) => isStatusAndAccountfilterMatch(e) && isDatesFilterMatch(e),
-      )
-    : sortedEvidences.filter((e) => isStatusAndAccountfilterMatch(e));
-
-  const dateTypeEl = document.getElementById(
-    "dateType-button-text",
-  ) as HTMLElement;
-
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-
-    const dateValue = formData.get("dateValue") as string;
-    const dateTypeElText = dateTypeEl.innerText.toLowerCase();
-
-    const dateType = (
-      dateTypeElText.includes("created") ? "created" : "updated"
-    ) as keyof DateFilter;
-
-    if (datesFilter[dateType].includes(dateValue)) {
-      const dropDownEl = document.getElementById(`${dateType}At-dropdown`);
-      (dropDownEl as HTMLElement).style.opacity = "1";
-      return;
-    }
-    setDatesFilter((prev) => ({
+  function handleCustomDateSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const minDate = formData.get("minDate") as string;
+    const maxDate = formData.get("maxDate") as string;
+    setDateFilters((prev) => ({
       ...prev,
-      [dateType]: [...prev[dateType], dateValue],
+      range: [minDate, maxDate],
     }));
-  }
-  // to avoid re render on state changes
-  function handleDateTypeChanged() {
-    if (dateTypeEl.innerText === "UPDATED ON") {
-      dateTypeEl.innerText = "CREATED ON";
-    } else {
-      dateTypeEl.innerText = "UPDATED ON";
-    }
   }
 
   return (
-    <>
-      {/* Evidences */}
-      <div className="z-100 relative h-full rounded-t-sm">
-        {/* Sorter */}
-        <div className="z-100 absolute top-4 right-12 grid grid-cols-[2fr_1fr] gap-x-2">
-          <nav
-            className="grid grid-cols-[1fr_1fr] rounded-l-sm border-2 border-orange-700 bg-orange-50 font-mono font-[500] text-orange-900"
-            aria-label="Tabs"
-          >
-            <button
-              onClick={() => {
-                if (sortBy !== "UPDATED") {
-                  setSortBy("UPDATED");
-                }
-              }}
-              type="button"
-              className={
-                sortBy === "UPDATED"
-                  ? "bg-orange-500 font-[600] text-white"
-                  : "hover:rounded-sm hover:font-[600] hover:bg-orange-200"
-              }
-            >
-              UPDATED
-            </button>
-            <button
-              onClick={() => {
-                if (sortBy !== "CREATED") {
-                  setSortBy("CREATED");
-                }
-              }}
-              type="button"
-              className={
-                sortBy === "CREATED"
-                  ? "bg-orange-500 font-[600] text-white"
-                  : "hover:font-[600] hover:bg-orange-200"
-              }
-            >
-              CREATED
-            </button>
-          </nav>
-          <button
-            id="sortOrder-select"
-            onClick={() => {
-              if (sortOrder === "asc") {
-                setSortOrder("desc");
-              } else {
-                setSortOrder("asc");
-              }
-            }}
-            type="button"
-            className={`px-2 font-mono font-[600] text-white bg-orange-500 rounded-r-sm border-2 border-orange-700`}
-          >
-            {sortOrder === "desc" ? (
-              <p>
-                LATEST <span className="text-xl">⭫</span>
-              </p>
-            ) : (
-              <p>
-                OLDEST <span className="text-xl">⭭</span>
-              </p>
+    <div className="relative h-full rounded-t-sm">
+      {/* Top Menu */}
+      <div className="absolute top-0 right-0 left-0 backdrop-blur-xs bg-orange-100/60 rounded-t-md border-b-2 border-orange-700">
+        <div className="pt-5 mb-7 px-3 flex flex-row justify-between">
+          {/* title */}
+          <div>
+            <span className="font-sans font-[500] text-orange-700 text-3xl">
+              {statusFilter} Evidences{", "}
+              {ownershipFilter === "all"
+                ? "created, received or transferred"
+                : ownershipFilter}{" "}
+              by You:
+            </span>
+            {/* Date chips */}
+            {rLen === 2 && (
+              <div className="mt-4 *:py-2 rounded-full *:bg-orange-100/60 bg-orange-200/60 text-orange-700 text-sm *:font-sans *:font-bold *:border-y-2 *:border-orange-700">
+                <span className="pl-2 border-l-2 rounded-l-full">
+                  {dateFilters.range[0]}
+                </span>
+                <span className="px-1 border-x-2 mx-1 rounded-full">to</span>
+                <span className="pr-2 border-r-2 rounded-r-full">
+                  {dateFilters.range[1]}
+                </span>
+                <span className="px-2 border-r-2 rounded-full">
+                  {dateFilters.range[1]}
+                </span>
+                <span className="px-2 border-r-2 rounded-full">
+                  {dateFilters.range[1]}
+                </span>
+              </div>
             )}
-          </button>
+          </div>
+          <div>
+            {/* Sorter */}
+            <div className="grid grid-cols-[2fr_1fr] gap-x-1">
+              <nav
+                className="grid grid-cols-[1fr_1fr] rounded-l-sm border-2 border-orange-700 bg-orange-50 font-mono font-[500] text-orange-900"
+                aria-label="Tabs"
+              >
+                <button
+                  onClick={() => {
+                    if (sortBy !== "UPDATED") {
+                      setSortBy("UPDATED");
+                    }
+                  }}
+                  type="button"
+                  className={
+                    sortBy === "UPDATED"
+                      ? "bg-orange-500 font-[600] text-white"
+                      : "hover:rounded-sm hover:font-[600] hover:bg-orange-200"
+                  }
+                >
+                  UPDATED
+                </button>
+                <button
+                  onClick={() => {
+                    if (sortBy !== "CREATED") {
+                      setSortBy("CREATED");
+                    }
+                  }}
+                  type="button"
+                  className={
+                    sortBy === "CREATED"
+                      ? "bg-orange-500 font-[600] text-white"
+                      : "hover:font-[600] hover:bg-orange-200"
+                  }
+                >
+                  CREATED
+                </button>
+              </nav>
+              <button
+                id="sortOrder-select"
+                onClick={() => {
+                  if (sortOrder === "asc") {
+                    setSortOrder("desc");
+                  } else {
+                    setSortOrder("asc");
+                  }
+                }}
+                type="button"
+                className={`px-2 font-mono font-[600] text-white bg-orange-500 rounded-r-sm border-2 border-orange-700`}
+              >
+                {sortOrder === "desc" ? (
+                  <p>
+                    LATEST <span className="text-xl">⭫</span>
+                  </p>
+                ) : (
+                  <p>
+                    OLDEST <span className="text-xl">⭭</span>
+                  </p>
+                )}
+              </button>
+            </div>
+          </div>
         </div>
+        {/* Filter Menu */}
+        {!isTopHidden && (
+          <div className="mb-7 relative grid grid-cols-[1fr_1fr] gap-x-3 p-4 bg-orange-100 m-2 rounded-sm border-2 border-orange-700">
+            {/* clear all filters */}
+            <Button
+              className="absolute top-1 right-1 rounded-sm"
+              variant="delete"
+              onClick={() => {
+                setDateFilters({
+                  range: [],
+                  distinct: [],
+                });
+                setStatusFilter("Active");
+                setRoleFilter("all");
+              }}
+            >
+              <Image src={bin} alt="clear all date filters" />
+            </Button>
+
+            {/* 1. search and status cum account filter */}
+            <div>
+              {/* search bar */}
+              <label
+                htmlFor="filter-select"
+                className="block font-mono font-medium text-lg text-orange-900"
+              >
+                Search Evidence:
+              </label>
+              <Input
+                className="mb-2 h-[52px] rounded-t-sm rounded-b-none"
+                placeholder="Search by ID, Creator, Current Owner etc"
+              />
+              {/* filter by status */}
+              <label
+                htmlFor="filter-select"
+                className="grid grid-cols-[2fr_5fr] gap-x-2 font-mono font-medium text-lg text-orange-900"
+              >
+                Status:<span>Filter By Ownership:</span>
+              </label>
+              <div className="grid grid-cols-[2fr_5fr] gap-x-2">
+                {/* Status */}
+                <div className="relative group rounded-sm flex items-center justify-between px-4 py-3 bg-orange-500 text-md text-white font-mono font-[600] border-2 border-orange-700">
+                  <p>{statusFilter}</p>
+                  <div
+                    className="text-center h-[20px] w-[20px] rounded-full 
+                          bg-orange-50 text-orange-500"
+                  >
+                    ⯆
+                  </div>
+                  <div className="z-100 absolute hidden group-hover:flex flex-col top-12 right-0 left-0 bg-orange-50 backdrop-blur-xs rounded-b-sm border-2 border-orange-700 text-orange-700 *:py-2 *:border-b-2 *:last:border-none">
+                    {statusFilterKey.map((s) => (
+                      <Button
+                        onClick={() => {
+                          setStatusFilter(s as statusFilterType);
+                        }}
+                        className="hover:bg-orange-500 hover:text-white hover:font-bold"
+                        key={s}
+                      >
+                        {s}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
+                <nav
+                  className="grid grid-cols-[1fr_1fr_1fr_1fr] rounded-b-sm border-2 border-orange-700 *:border-orange-700 bg-orange-50 font-mono font-[500] text-orange-900"
+                  aria-label="Tabs"
+                >
+                  <button
+                    onClick={() => {
+                      if (ownershipFilter !== "all") {
+                        setRoleFilter("all");
+                      }
+                    }}
+                    type="button"
+                    className={`py-2 px-3 ${
+                      ownershipFilter === "all"
+                        ? "bg-orange-500 font-[600] text-white"
+                        : "hover:rounded-b-sm hover:font-[600] hover:bg-orange-200"
+                    }`}
+                  >
+                    ALL
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (ownershipFilter !== "created") {
+                        setRoleFilter("created");
+                      }
+                    }}
+                    type="button"
+                    className={`py-2 px-3 border-x-2 ${
+                      ownershipFilter === "created"
+                        ? "bg-orange-500 font-[600] text-white"
+                        : "hover:font-[600] hover:bg-orange-200"
+                    }`}
+                  >
+                    CREATED
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (ownershipFilter !== "received") {
+                        setRoleFilter("received");
+                      }
+                    }}
+                    type="button"
+                    className={`py-2 px-3 ${
+                      ownershipFilter === "received"
+                        ? "bg-orange-500 font-[600] text-white"
+                        : "hover:rounded-b-sm hover:font-[600] hover:bg-orange-200"
+                    }`}
+                  >
+                    RECEIVED
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (ownershipFilter !== "transferred") {
+                        setRoleFilter("transferred");
+                      }
+                    }}
+                    type="button"
+                    className={`py-2 px-3 border-l-2 ${
+                      ownershipFilter === "transferred"
+                        ? "bg-orange-500 font-[600] text-white"
+                        : "hover:rounded-b-sm hover:font-[600] hover:bg-orange-200"
+                    }`}
+                  >
+                    TRANSFERRED
+                  </button>
+                </nav>
+              </div>
+            </div>
+
+            {/* 2. date filter */}
+
+            <div>
+              <label className="block font-mono font-medium text-lg text-orange-900">
+                Filter By Date:
+              </label>
+              {/* Quick date select */}
+              <div
+                className="grid grid-cols-[1fr_1fr_1fr_1fr] gap-x-1 mb-2
+                        *:rounded-sm *:flex *:items-center *:justify-between *:px-4 *:py-3 *:bg-orange-500 *:text-md *:text-white *:font-mono *:font-[600] *:border-2 *:border-orange-700"
+              >
+                {quickDateFilterKey.map((d) => (
+                  <div key={d} className="relative group hover:rounded-sm">
+                    <p>{d}</p>
+                    <div
+                      className="flex items-center justify-center h-[20px] w-[20px] rounded-full 
+                          bg-orange-50 text-orange-500"
+                    >
+                      ⯆
+                    </div>
+                    <div className="hidden group-hover:flex flex-col absolute top-12 right-0 left-0 bg-orange-50 backdrop-blur-xs rounded-b-sm border-2 border-orange-700 text-orange-700 *:py-2 *:border-b-2 *:last:border-none">
+                      {quickDateFilters[d as QuickDateFilterType].map((i) => (
+                        <Button
+                          onClick={() => {
+                            const currentDate = Temporal.Now.plainDateISO();
+                            let dis: string = "";
+                            let dur: string[] = []; // duration range
+                            if (i === "Today") {
+                              if (
+                                dateFilters.distinct.includes(
+                                  currentDate.toString(),
+                                )
+                              ) {
+                              } else {
+                                dis = currentDate.toString();
+                              }
+                            } else if (i === "Yesterday") {
+                              const yd = currentDate
+                                .subtract({ days: 1 })
+                                .toString();
+                              if (dateFilters.distinct.includes(yd)) {
+                              } else {
+                                dis = yd;
+                              }
+                            } else if (i === "Past 3 Days") {
+                              const minDate = currentDate
+                                .subtract({ days: 3 })
+                                .toString();
+                              const maxDate = currentDate.toString();
+                              dur.push(minDate, maxDate);
+                            }
+                            setDateFilters((prev) => ({
+                              ...prev,
+                              distinct:
+                                dis === ""
+                                  ? [...prev.distinct]
+                                  : [...prev.distinct, dis],
+                              range: dur,
+                            }));
+                          }}
+                          className="hover:bg-orange-500 hover:text-white hover:font-bold"
+                          key={i}
+                        >
+                          {i}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Custom date select */}
+              <label className="block font-mono font-medium text-lg text-orange-900">
+                Custom Date Filter:
+              </label>
+              <form
+                onSubmit={handleCustomDateSubmit}
+                className="grid grid-cols-[1fr_1fr_1fr_0.5fr] gap-x-1"
+              >
+                <button
+                  onClick={() => {}}
+                  className="flex items-center justify-between p-2 rounded-l-sm bg-orange-500 text-sm text-white font-sans font-[600] border-2 border-orange-700"
+                >
+                  <p>On</p>
+                  <div className="h-[20px] w-[20px] rounded-full bg-orange-50 text-orange-500">
+                    ⯆
+                  </div>
+                </button>
+                <Input name="minDate" className="h-[52px]" type="date" />
+                <Input name="maxDate" className="h-[52px]" type="date" />
+                <Button
+                  type="submit"
+                  variant="add"
+                  className="rounded-full text-3xl text-center font-medium font-sans"
+                >
+                  +
+                </Button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* TODO fix this button's bg and placement in firefox */}
         {/* Hide Menu button */}
         <button
-          className={`z-100 absolute top-3 right-2`}
+          className="flex flex-row items-center place-self-end mr-2 mb-[-50px] pr-2 rounded-full font-sans text-sm text-orange-700 font-semibold bg-orange-100 border-2 border-orange-700 "
           onClick={() => {
             isTopHidden ? setIsTopHidden(false) : setIsTopHidden(true);
           }}
@@ -202,448 +475,63 @@ export default function MyEvidencePage() {
             src={!isTopHidden ? expandUp : expandDown}
             alt="collapse top menu"
           />
+          <span>Show filters</span>
         </button>
-        {/* TOP bar */}
-        <div className="absolute top-0 right-0 left-0 backdrop-blur-xs bg-orange-100/60 rounded-t-md border-b-2 border-orange-700">
-          {/* Filter title */}
-          <div
-            className={`pl-5 py-4 font-sans font-[500] text-orange-700 text-3xl`}
-          >
-            {statusFilter} Evidences{", "}
-            {roleFilter === "All" ? "Created or Owned" : roleFilter} by
-            You:{" "}
-          </div>
-
-          {/* Dates Chips
-
-          {hasDates && (
-            <div className="flex flex-row items-center text-orange-900">
-              {datesFilter.created.length > 0 && (
-                <div className="relative mr-2">
-                  <button
-                    onClick={() => {
-                      const createdAtDropDownEl = document.getElementById(
-                        "createdAt-dropdown",
-                      ) as HTMLElement;
-                      if (createdAtDropDownEl.style.opacity === "1") {
-                        createdAtDropDownEl.style.opacity = "0";
-                      } else {
-                        createdAtDropDownEl.style.opacity = "1";
-                      }
-                    }}
-                    className="w-[164px] flex justify-between p-2 rounded-full bg-orange-500 text-sm text-white font-sans font-[600] border-2 border-orange-700"
-                  >
-                    <p>CREATED ON</p>
-                    <div className="h-[20px] w-[20px] rounded-full bg-orange-50 text-orange-500">
-                      {datesFilter.created.length}
-                    </div>
-                    <div className="h-[20px] w-[20px] rounded-full bg-orange-50 text-orange-500">
-                      ⯆
-                    </div>
-                  </button>
-                  <div
-                    id="createdAt-dropdown"
-                    className="absolute z-100 opacity-0 rounded-sm bg-orange-100 border-x-2 border-orange-700"
-                  >
-                    {datesFilter.created.map((d) => (
-                      <div
-                        key={`created-${d}`}
-                        className="p-2 last:rounded-b-sm border-b-2 border-orange-700 font-mono font-semibold text-md text-orange-900"
-                      >
-                        {new Date(d).toDateString()}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {datesFilter.updated.length > 0 && (
-                <div className="relative mr-2">
-                  <button
-                    onClick={() => {
-                      const updatedAtDropDownEl = document.getElementById(
-                        "updatedAt-dropdown",
-                      ) as HTMLElement;
-                      if (updatedAtDropDownEl.style.opacity === "1") {
-                        updatedAtDropDownEl.style.opacity = "0";
-                      } else {
-                        updatedAtDropDownEl.style.opacity = "1";
-                      }
-                    }}
-                    className="w-[164px] flex justify-between p-2 rounded-full bg-orange-500 text-sm text-white font-sans font-[600] border-2 border-orange-700"
-                  >
-                    <p>UPDATED ON</p>
-                    <div className="h-[20px] w-[20px] rounded-full bg-orange-50 text-orange-500">
-                      {datesFilter.updated.length}
-                    </div>
-                    <div className="h-[20px] w-[20px] rounded-full bg-orange-50 text-orange-500">
-                      ⯆
-                    </div>
-                  </button>
-                  <div
-                    id="updatedAt-dropdown"
-                    className="absolute z-100 rounded-sm opacity-0 bg-orange-100 border-x-2 border-orange-700"
-                  >
-                    {datesFilter.updated.map((d) => (
-                      <div
-                        key={`updated-${d}`}
-                        className="p-2 last:rounded-b-sm border-b-2 border-orange-700 font-mono font-semibold text-md text-orange-900"
-                      >
-                        {new Date(d).toDateString()}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )} */}
-
-          {/* Sort and Filter Menu */}
-          {!isTopHidden && (
-            <div className="grid grid-cols-[1fr_1fr] gap-x-3 p-4 bg-orange-100 m-2 rounded-sm border-2 border-orange-700">
-              {/* 1. search and status cum account filter */}
-              <div>
-                {/* search bar */}
-                <label
-                  htmlFor="filter-select"
-                  className="block font-mono font-medium text-lg text-orange-900"
-                >
-                  Search Evidence:
-                </label>
-                <Input
-                  className="mb-2 h-[45px] rounded-t-sm rounded-b-none"
-                  placeholder="Search by ID, Creator, Current Owner etc"
-                />
-                {/* filter by status and account */}
-                <label
-                  htmlFor="filter-select"
-                  className="block font-mono font-medium text-lg text-orange-900"
-                >
-                  Filter By Status And Role:
-                </label>
-                <div
-                  id="filter-select"
-                  className="grid grid-rows-[1fr_1fr] gap-y-1"
-                >
-                  <nav
-                    className="grid grid-cols-[1fr_1fr_1fr] border-2 border-orange-700 *:border-orange-700 bg-orange-50 font-mono font-[500] text-orange-900"
-                    aria-label="Tabs"
-                  >
-                    <button
-                      onClick={() => {
-                        if (statusFilter !== "All") {
-                          setStatusFilter("All");
-                        }
-                      }}
-                      type="button"
-                      className={`py-2 px-3 ${
-                        statusFilter === "All"
-                          ? "bg-orange-500 font-[600] text-white"
-                          : "hover:font-[600] hover:bg-orange-200"
-                      }`}
-                    >
-                      ALL
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (statusFilter !== "Active") {
-                          setStatusFilter("Active");
-                        }
-                      }}
-                      type="button"
-                      className={`py-2 px-3 border-x-2 ${
-                        statusFilter === "Active"
-                          ? "bg-orange-500 font-[600] text-white"
-                          : "hover:font-[600] hover:bg-orange-200"
-                      }`}
-                    >
-                      ACTIVE
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (statusFilter !== "Discontinued") {
-                          setStatusFilter("Discontinued");
-                        }
-                      }}
-                      type="button"
-                      className={`py-2 px-3 ${
-                        statusFilter === "Discontinued"
-                          ? "bg-orange-500 font-[600] text-white"
-                          : "hover:font-[600] hover:bg-orange-200"
-                      }`}
-                    >
-                      DISCONTINUED
-                    </button>
-                  </nav>
-                  <nav
-                    className="grid grid-cols-[1fr_1fr_1fr] rounded-b-sm border-2 border-orange-700 *:border-orange-700 bg-orange-50 font-mono font-[500] text-orange-900"
-                    aria-label="Tabs"
-                  >
-                    <button
-                      onClick={() => {
-                        if (roleFilter !== "All") {
-                          setRoleFilter("All");
-                        }
-                      }}
-                      type="button"
-                      className={`py-2 px-3 ${
-                        roleFilter === "All"
-                          ? "bg-orange-500 font-[600] text-white"
-                          : "hover:rounded-b-sm hover:font-[600] hover:bg-orange-200"
-                      }`}
-                    >
-                      ALL
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (roleFilter !== "Created") {
-                          setRoleFilter("Created");
-                        }
-                      }}
-                      type="button"
-                      className={`py-2 px-3 border-x-2 ${
-                        roleFilter === "Created"
-                          ? "bg-orange-500 font-[600] text-white"
-                          : "hover:font-[600] hover:bg-orange-200"
-                      }`}
-                    >
-                      CREATED
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (roleFilter !== "Owned") {
-                          setRoleFilter("Owned");
-                        }
-                      }}
-                      type="button"
-                      className={`py-2 px-3 ${
-                        roleFilter === "Owned"
-                          ? "bg-orange-500 font-[600] text-white"
-                          : "hover:rounded-b-sm hover:font-[600] hover:bg-orange-200"
-                      }`}
-                    >
-                      OWNED
-                    </button>
-                  </nav>
-                </div>
-              </div>
-
-              {/* 2. date filter */}
-
-              <div>
-                <label className="block font-mono font-medium text-lg text-orange-900">
-                  Filter By Date Type:
-                </label>
-                <form
-                  onSubmit={handleSubmit}
-                  className="grid grid-rows-[3fr_7fr] gap-y-2"
-                >
-                  <nav
-                    className="grid grid-cols-[1fr_1fr_1fr_1fr] rounded-t-sm rounded-b-sm border-2 border-orange-700 bg-orange-50 font-mono font-[500] text-orange-900
-                    *:border-orange-700
-                    "
-                    aria-label="Tabs"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => {
-                        dateFilterType !== "ALL" && setDatesFilterType("ALL");
-                      }}
-                      className={`py-2 px-3 border-r-2 rounded-bl-sm ${
-                        dateFilterType === "ALL"
-                          ? "bg-orange-500 font-[600] text-white"
-                          : "hover:rounded-t-sm hover:font-[600] hover:bg-orange-200"
-                      }`}
-                    >
-                      ALL
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        dateFilterType !== "CREATED" &&
-                          setDatesFilterType("CREATED");
-                      }}
-                      className={`py-2 px-3 ${
-                        dateFilterType === "CREATED"
-                          ? "bg-orange-500 font-[600] text-white"
-                          : "hover:font-[600] hover:bg-orange-200"
-                      }`}
-                    >
-                      CREATED
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        dateFilterType !== "TRANSFERRED" &&
-                          setDatesFilterType("TRANSFERRED");
-                      }}
-                      className={`py-2 px-3 border-x-2 ${
-                        dateFilterType === "TRANSFERRED"
-                          ? "bg-orange-500 font-[600] text-white"
-                          : "hover:rounded-t-sm hover:font-[600] hover:bg-orange-200"
-                      }`}
-                    >
-                      TRANSFERRED
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        dateFilterType !== "DISCONTINUED" &&
-                          setDatesFilterType("DISCONTINUED");
-                      }}
-                      className={`py-2 px-3 rounded-br-sm ${
-                        dateFilterType === "DISCONTINUED"
-                          ? "bg-orange-500 font-[600] text-white"
-                          : "hover:font-[600] hover:bg-orange-200"
-                      }`}
-                    >
-                      DISCONTINUED
-                    </button>
-                  </nav>
-
-                  <div className="grid grid-cols-[1fr_0.1fr] gap-x-2">
-                    <div className="grid grid-rows-[1fr_1fr] gap-y-2">
-                      <div
-                        className="grid grid-cols-[1fr_1fr_1fr_1fr] gap-x-1
-                      *:rounded-full *:flex *:items-center *:justify-between *:p-2 *:bg-orange-500 *:text-sm *:text-white *:font-sans *:font-[600] *:border-2 *:border-orange-700
-                      "
-                      >
-                        <button onClick={() => {}}>
-                          <p>Days</p>
-                          <div className="grid grid-cols-2 gap-x-2">
-                            <div className="h-[20px] w-[20px] rounded-full bg-orange-50 text-orange-500">
-                              +
-                            </div>
-                            <div className="h-[20px] w-[20px] rounded-full bg-orange-50 text-orange-500">
-                              ⯆
-                            </div>
-                          </div>
-                        </button>
-                        <button onClick={() => {}}>
-                          <p>Weeks</p>
-                          <div className="grid grid-cols-2 gap-x-2">
-                            <div className="h-[20px] w-[20px] rounded-full bg-orange-50 text-orange-500">
-                              +
-                            </div>
-                            <div className="h-[20px] w-[20px] rounded-full bg-orange-50 text-orange-500">
-                              ⯆
-                            </div>
-                          </div>
-                        </button>
-                        <button onClick={() => {}}>
-                          <p>Months</p>
-                          <div className="grid grid-cols-2 gap-x-2">
-                            <div className="h-[20px] w-[20px] rounded-full bg-orange-50 text-orange-500">
-                              +
-                            </div>
-                            <div className="h-[20px] w-[20px] rounded-full bg-orange-50 text-orange-500">
-                              ⯆
-                            </div>
-                          </div>
-                        </button>
-                        <button onClick={() => {}}>
-                          <p>Year</p>
-                          <div className="grid grid-cols-2 gap-x-2">
-                            <div className="h-[20px] w-[20px] rounded-full bg-orange-50 text-orange-500">
-                              +
-                            </div>
-                            <div className="h-[20px] w-[20px] rounded-full bg-orange-50 text-orange-500">
-                              ⯆
-                            </div>
-                          </div>
-                        </button>
-                      </div>
-
-                      <div className="grid grid-cols-[1fr_1fr_1fr_0.5fr] gap-x-1">
-                        <button
-                          onClick={() => {}}
-                          className="flex items-center justify-between p-2 rounded-l-sm bg-orange-500 text-sm text-white font-sans font-[600] border-2 border-orange-700"
-                        >
-                          <p>On</p>
-                          <div className="h-[20px] w-[20px] rounded-full bg-orange-50 text-orange-500">
-                            ⯆
-                          </div>
-                        </button>
-                        <Input className="h-[52px]" type="date" />
-                        <Input className="h-[52px]" type="date" />
-                        <Button
-                          variant="add"
-                          className="rounded-full text-3xl text-center font-medium font-sans"
-                        >
-                          +
-                        </Button>
-                      </div>
-                    </div>
-
-                    <Button
-                      variant="delete"
-                      className="flex justify-center rounded-full"
-                    >
-                      <Image priority src={bin} alt="delete all date filters" />
-                    </Button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          )}
-        </div>
-        {/* Evidence list */}
-        <div
-          className={`overflow-y-scroll h-full ${isTopHidden ? "pt-18" : "pt-82"}`}
-        >
-          {isLoadingEvidences ? (
-            <p className="p-4 animate-pulse text-center text-sm text-gray-500">
-              Loading evidences...
-            </p>
-          ) : filteredEvidences.length === 0 ? (
-            <div className="absolute flex items-center justify-center gap-4 p-4">
-              <Image priority src={none} alt="no evidences found" />
-              <div className="font-sans text-4xl text-orange-700">
-                No evidences found
-              </div>
-            </div>
-          ) : (
-            filteredEvidences.map((e: SocketEvidenceDetails) => {
-              const key = `${e.id}`;
-              return (
-                <div
-                  key={key}
-                  className={`mx-2 my-2 p-4 rounded-sm font-mono font-semibold text-lg border-2 ${e.status === "active" ? "text-green-800 bg-green-50 border-green-700" : "text-gray-600 bg-gray-50 border-gray-500"}`}
-                >
-                  <Link href={`/evidence/${e.id}`} className="block font-mono">
-                    ID:{" "}
-                    <span className="hover:underline text-orange-700">
-                      {e.id}
-                    </span>
-                  </Link>
-                  <p>
-                    Description:{" "}
-                    <span className="text-orange-700">{e.description}</span>
-                  </p>
-                  <p>
-                    Creator:{" "}
-                    <span className="text-orange-700">{e.creator}</span> @{" "}
-                    {bigintToDateWithTimeStamp(e.createdAt).toLocaleString()}
-                    {e.status !== "active" &&
-                      " to " +
-                        bigintToDateWithTimeStamp(
-                          e.discontinuedAt as bigint,
-                        ).toLocaleString()}
-                  </p>
-                  <p>
-                    {e.status === "active" ? "Current Owner: " : "Last Owner: "}
-                    <span className="text-orange-700">
-                      {e.currentOwner}
-                    </span> @{" "}
-                    {bigintToDateWithTimeStamp(
-                      e.transferredAt,
-                    ).toLocaleString()}
-                  </p>
-                </div>
-              );
-            })
-          )}
-        </div>
       </div>
-    </>
+      {/* Evidence list */}
+      <div
+        className={`overflow-y-scroll h-full ${isTopHidden ? "pt-20" : "pt-78"}`}
+      >
+        {isLoadingEvidences ? (
+          <p className="p-4 animate-pulse text-center text-sm text-gray-500">
+            Loading evidences...
+          </p>
+        ) : (
+          // ) : filteredEvidences.length === 0 ? (
+          //   <div className="flex items-center justify-center gap-4 p-4">
+          //     <Image priority src={none} alt="no evidences found" />
+          //     <div className="font-sans text-4xl text-orange-700">
+          //       No evidences found
+          //     </div>
+          //   </div>
+          filteredEvidences.map((e: SocketEvidenceDetails) => {
+            const key = `${e.id}`;
+            return (
+              <div
+                key={key}
+                className={`mx-2 my-2 p-4 rounded-sm font-mono font-semibold text-lg border-2 ${e.status === "active" ? "text-green-800 bg-green-50 border-green-700" : "text-gray-600 bg-gray-50 border-gray-500"}`}
+              >
+                <Link href={`/evidence/${e.id}`} className="block font-mono">
+                  ID:{" "}
+                  <span className="hover:underline text-orange-700">
+                    {e.id}
+                  </span>
+                </Link>
+                <p>
+                  Description:{" "}
+                  <span className="text-orange-700">{e.description}</span>
+                </p>
+                <p>
+                  Creator: <span className="text-orange-700">{e.creator}</span>{" "}
+                  @ {bigintToDateWithTimeStamp(e.createdAt).toLocaleString()}
+                  {e.status !== "active" &&
+                    " to " +
+                      bigintToDateWithTimeStamp(
+                        e.discontinuedAt as bigint,
+                      ).toLocaleString()}
+                </p>
+                <p>
+                  {e.status === "active" ? "Current Owner: " : "Last Owner: "}
+                  <span className="text-orange-700">
+                    {e.currentOwner}
+                  </span> @{" "}
+                  {bigintToDateWithTimeStamp(e.transferredAt).toLocaleString()}
+                </p>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
   );
 }

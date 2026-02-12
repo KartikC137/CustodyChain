@@ -93,7 +93,7 @@ export async function validateActivity(
         args.contractAddress,
         args.evidenceId,
         creator,
-        args.timeOfCreation,
+        args.timeOfCreation, //testing value
         blockNumberFromReceipt,
         txHash,
         args.desc,

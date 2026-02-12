@@ -49,7 +49,6 @@ export function ActivityProvider({ children }: { children: ReactNode }) {
         return;
       }
       const data = await fetchActivitiesForPanel(account);
-      console.log("Fetch activities", data);
       setActivities(data);
     } catch (err) {
       console.error("Failed to fetch activities", err);
