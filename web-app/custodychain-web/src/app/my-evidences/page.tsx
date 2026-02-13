@@ -7,7 +7,7 @@ import expandDown from "../../../public/icons/expand-down.svg";
 import none from "../../../public/icons/none.svg";
 import bin from "../../../public/icons/bin.svg";
 import Image from "next/image";
-import { FormEvent, useState } from "react";
+import { useState } from "react";
 import { useWeb3 } from "@/src/context-and-hooks/Web3Context";
 import { useEvidences } from "@/src/context-and-hooks/EvidencesContext";
 import { SocketEvidenceDetails } from "@/src/lib/types/socketEvent.types";
@@ -23,23 +23,32 @@ let pastYear = 0;
 if (currentYear > 2026) {
   pastYear = currentYear;
 }
+
+// todo fix this
+// heirarchy values : no date set: -1, custom date set: 0, days: 1,1,2, weeks: 3,3,4 and so on
 const quickDateFilters = {
-  Days: ["Today", "Yesterday", "Past 3 Days"],
+  Today: ["Today", "Yesterday", "Past 3 Days"],
   Weeks: ["This Week", "Past Week", "Past 3 Weeks"],
   Months: ["This Month", "Past Month", "Past 3 Months", "Past 6 Months"],
   Years:
     pastYear > 0
-      ? [pastYear, pastYear - 1, pastYear - 2, pastYear - 3]
+      ? [
+          pastYear.toString(),
+          (pastYear - 1).toString(),
+          (pastYear - 2).toString(),
+          (pastYear - 3).toString(),
+        ]
       : ["2026"],
 };
+const quickDateFilterKey = Object.keys(quickDateFilters);
+
 type SortDateValueType = "CREATED" | "UPDATED";
 type statusFilterType = "All" | "Active" | "Discontinued";
-type QuickDateFilterType = "Days" | "Weeks" | "Months" | "Years";
-const quickDateFilterKey = ["Days", "Weeks", "Months", "Years"];
 const statusFilterKey = ["All", "Active", "Discontinued"];
 interface dateFilters {
   range: string[]; // minDate,maxDate
   distinct: string[]; // separate dates
+  hValue: number; // heirarchy value
 }
 export default function MyEvidencePage() {
   const [isTopHidden, setIsTopHidden] = useState<boolean>(false);
@@ -51,10 +60,11 @@ export default function MyEvidencePage() {
   const [dateFilters, setDateFilters] = useState<dateFilters>({
     range: [],
     distinct: [],
+    hValue: -1,
   });
   console.info("Dates filter set,", dateFilters);
 
-  //Sort values
+  // Sort values
   const [sortBy, setSortBy] = useState<SortDateValueType>("UPDATED");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
@@ -86,6 +96,25 @@ export default function MyEvidencePage() {
           : (e.creator === account && isDatesFilterMatch(e.createdAt)) ||
             (e.currentOwner === account && isDatesFilterMatch(e.transferredAt));
 
+  /**
+   *
+   * @param firstDate only firstDate: checks if firstDate is unique filter
+   * @param maxDate firstDate != maxDate : checks if the range matches, firstDate == maxDate: checks if the firstDate is within the range
+   * @returns boolean
+   */
+  const isDateIncluded = (
+    firstDate: Temporal.PlainDate | string,
+    maxDate?: Temporal.PlainDate | string,
+  ) => {
+    const d = firstDate.toString();
+    if (!maxDate) {
+      return dateFilters.distinct.includes(d);
+    } else {
+      const maxD = maxDate.toString();
+      return d >= dateFilters.range[0] && dateFilters.range[1] <= maxD;
+    }
+  };
+
   // for ranges, check if date is after minDate and before maxDate (exclusive)
   const isDatesFilterMatch = (rawDate: bigint) => {
     const isoDate = bigIntToIsoDate(rawDate);
@@ -93,11 +122,10 @@ export default function MyEvidencePage() {
     let distinctMatch = true;
     let rangeMatch = true;
     if (rLen === 2) {
-      rangeMatch =
-        isoDate >= dateFilters.range[0] && isoDate <= dateFilters.range[1];
+      rangeMatch = isDateIncluded(isoDate, isoDate);
     }
     if (dLen > 0) {
-      distinctMatch = dateFilters.distinct.some((d) => d === isoDate);
+      distinctMatch = isDateIncluded(isoDate);
     }
     return distinctMatch && rangeMatch;
   };
@@ -106,8 +134,10 @@ export default function MyEvidencePage() {
     (e) => isStatusFilterMatch(e) && isOwnershipfilterMatch(e),
   );
 
-  // Sort evidences
-  const sortedEvidences = filteredEvidences.sort((a, b) => {
+  /**
+   * @notice Currently sorting directly on the filtered
+   */
+  filteredEvidences.sort((a, b) => {
     const aUpdatedAt = a.discontinuedAt || a.transferredAt;
     const bUpdatedAt = b.discontinuedAt || b.transferredAt;
 
@@ -132,10 +162,42 @@ export default function MyEvidencePage() {
     }));
   }
 
+  function handleQuickDateFilterSubmit(i: string) {
+    const currentDate = Temporal.Now.plainDateISO();
+    let dis: string = "";
+    let dur: string[] = [];
+    if (i === "Today") {
+      if (dateFilters.distinct.includes(currentDate.toString())) {
+      } else {
+        dis = currentDate.toString();
+      }
+    } else if (i === "Yesterday") {
+      const yd = currentDate.subtract({ days: 1 }).toString();
+      if (dateFilters.distinct.includes(yd)) {
+      } else {
+        dis = yd;
+      }
+    } else if (i === "Past 3 Days") {
+      const minDate = currentDate.subtract({ days: 3 }).toString();
+      const maxDate = currentDate.toString();
+      dur.push(minDate, maxDate);
+    }
+    setDateFilters((prev) => ({
+      ...prev,
+      distinct: dis === "" ? [...prev.distinct] : [...prev.distinct, dis],
+      range: dur,
+    }));
+  }
+
+  const isQuickDateFilterDisabled = (hToCheck: number) => {
+    const currH = dateFilters.hValue;
+    return currH > hToCheck;
+  };
+
   return (
     <div className="relative h-full rounded-t-sm">
       {/* Top Menu */}
-      <div className="absolute top-0 right-0 left-0 backdrop-blur-xs bg-orange-100/60 rounded-t-md border-b-2 border-orange-700">
+      <div className="absolute top-0 right-0 left-0 backdrop-blur-xs bg-orange-100/60 rounded-t-md  border-orange-700">
         <div className="pt-5 mb-7 px-3 flex flex-row justify-between">
           {/* title */}
           <div>
@@ -147,23 +209,38 @@ export default function MyEvidencePage() {
               by You:
             </span>
             {/* Date chips */}
-            {rLen === 2 && (
-              <div className="mt-4 *:py-2 rounded-full *:bg-orange-100/60 bg-orange-200/60 text-orange-700 text-sm *:font-sans *:font-bold *:border-y-2 *:border-orange-700">
-                <span className="pl-2 border-l-2 rounded-l-full">
-                  {dateFilters.range[0]}
-                </span>
-                <span className="px-1 border-x-2 mx-1 rounded-full">to</span>
-                <span className="pr-2 border-r-2 rounded-r-full">
-                  {dateFilters.range[1]}
-                </span>
-                <span className="px-2 border-r-2 rounded-full">
-                  {dateFilters.range[1]}
-                </span>
-                <span className="px-2 border-r-2 rounded-full">
-                  {dateFilters.range[1]}
-                </span>
-              </div>
-            )}
+            <div
+              className={`${(rLen == 2 || dLen > 0) && "border-none"} border-2 h-5 mt-4 rounded-full  bg-orange-100 text-orange-700 text-sm *:font-sans *:font-bold *:border-y-2 *:border-orange-700`}
+            >
+              {rLen == 2 && (
+                <>
+                  <span className="pl-2 py-2 border-l-2 rounded-full">
+                    {dateFilters.range[0]}
+                  </span>
+                  <span className="px-1 border-x-2 mx-1 rounded-full">to</span>
+                  <span className="pr-2 py-2 border-r-2 rounded-full">
+                    {dateFilters.range[1]}
+                    <Button className="ml-2 px-2 rounded-full border-2 border-red-600 text-red-600 hover:text-white hover:bg-red-600/75 hover:border-red-600">
+                      X
+                    </Button>
+                  </span>
+                </>
+              )}
+              {dLen > 0 &&
+                dateFilters.distinct.map((d) => (
+                  <>
+                    <span key={d} className="ml-2 p-2 border-2 rounded-full">
+                      {d}
+                      <Button className="ml-2 px-2 rounded-full border-2 border-red-600 text-red-600 hover:text-white hover:bg-red-600/75 hover:border-red-600">
+                        X
+                      </Button>
+                    </span>
+                    {/* <Button className="hover:bg-orange-500! hover:text-white px-2 border-2 rounded-full">
+                      X
+                    </Button> */}
+                  </>
+                ))}
+            </div>
           </div>
           <div>
             {/* Sorter */}
@@ -230,7 +307,7 @@ export default function MyEvidencePage() {
         </div>
         {/* Filter Menu */}
         {!isTopHidden && (
-          <div className="mb-7 relative grid grid-cols-[1fr_1fr] gap-x-3 p-4 bg-orange-100 m-2 rounded-sm border-2 border-orange-700">
+          <div className="relative grid grid-cols-[1fr_1fr] gap-x-3 p-4 bg-orange-100 m-2 rounded-sm border-2 border-orange-700">
             {/* clear all filters */}
             <Button
               className="absolute top-1 right-1 rounded-sm"
@@ -239,6 +316,7 @@ export default function MyEvidencePage() {
                 setDateFilters({
                   range: [],
                   distinct: [],
+                  hValue: -1,
                 });
                 setStatusFilter("Active");
                 setRoleFilter("all");
@@ -371,9 +449,9 @@ export default function MyEvidencePage() {
                 className="grid grid-cols-[1fr_1fr_1fr_1fr] gap-x-1 mb-2
                         *:rounded-sm *:flex *:items-center *:justify-between *:px-4 *:py-3 *:bg-orange-500 *:text-md *:text-white *:font-mono *:font-[600] *:border-2 *:border-orange-700"
               >
-                {quickDateFilterKey.map((d) => (
-                  <div key={d} className="relative group hover:rounded-sm">
-                    <p>{d}</p>
+                {Object.entries(quickDateFilters).map(([key, values]) => (
+                  <div key={key} className="relative group hover:rounded-sm">
+                    <p>{key}</p>
                     <div
                       className="flex items-center justify-center h-[20px] w-[20px] rounded-full 
                           bg-orange-50 text-orange-500"
@@ -381,44 +459,10 @@ export default function MyEvidencePage() {
                       ⯆
                     </div>
                     <div className="hidden group-hover:flex flex-col absolute top-12 right-0 left-0 bg-orange-50 backdrop-blur-xs rounded-b-sm border-2 border-orange-700 text-orange-700 *:py-2 *:border-b-2 *:last:border-none">
-                      {quickDateFilters[d as QuickDateFilterType].map((i) => (
+                      {values.map((i: any) => (
                         <Button
                           onClick={() => {
-                            const currentDate = Temporal.Now.plainDateISO();
-                            let dis: string = "";
-                            let dur: string[] = []; // duration range
-                            if (i === "Today") {
-                              if (
-                                dateFilters.distinct.includes(
-                                  currentDate.toString(),
-                                )
-                              ) {
-                              } else {
-                                dis = currentDate.toString();
-                              }
-                            } else if (i === "Yesterday") {
-                              const yd = currentDate
-                                .subtract({ days: 1 })
-                                .toString();
-                              if (dateFilters.distinct.includes(yd)) {
-                              } else {
-                                dis = yd;
-                              }
-                            } else if (i === "Past 3 Days") {
-                              const minDate = currentDate
-                                .subtract({ days: 3 })
-                                .toString();
-                              const maxDate = currentDate.toString();
-                              dur.push(minDate, maxDate);
-                            }
-                            setDateFilters((prev) => ({
-                              ...prev,
-                              distinct:
-                                dis === ""
-                                  ? [...prev.distinct]
-                                  : [...prev.distinct, dis],
-                              range: dur,
-                            }));
+                            handleQuickDateFilterSubmit(i);
                           }}
                           className="hover:bg-orange-500 hover:text-white hover:font-bold"
                           key={i}
@@ -480,20 +524,21 @@ export default function MyEvidencePage() {
       </div>
       {/* Evidence list */}
       <div
-        className={`overflow-y-scroll h-full ${isTopHidden ? "pt-20" : "pt-78"}`}
+        className={`overflow-y-scroll h-full ${isTopHidden ? "pt-30" : "pt-84"}`}
       >
         {isLoadingEvidences ? (
           <p className="p-4 animate-pulse text-center text-sm text-gray-500">
             Loading evidences...
           </p>
+        ) : filteredEvidences.length === 0 ? (
+          // todo : if filters are on, add a clear filter button here
+          <div className="flex items-center justify-center gap-4 p-4">
+            <Image priority src={none} alt="no evidences found" />
+            <div className="font-sans text-4xl text-orange-700">
+              No evidences found
+            </div>
+          </div>
         ) : (
-          // ) : filteredEvidences.length === 0 ? (
-          //   <div className="flex items-center justify-center gap-4 p-4">
-          //     <Image priority src={none} alt="no evidences found" />
-          //     <div className="font-sans text-4xl text-orange-700">
-          //       No evidences found
-          //     </div>
-          //   </div>
           filteredEvidences.map((e: SocketEvidenceDetails) => {
             const key = `${e.id}`;
             return (
