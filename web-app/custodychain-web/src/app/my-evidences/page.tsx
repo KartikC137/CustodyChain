@@ -7,7 +7,7 @@ import expandDown from "../../../public/icons/expand-down.svg";
 import none from "../../../public/icons/none.svg";
 import bin from "../../../public/icons/bin.svg";
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useWeb3 } from "@/src/context-and-hooks/Web3Context";
 import { useEvidences } from "@/src/context-and-hooks/EvidencesContext";
 import { SocketEvidenceDetails } from "@/src/lib/types/socketEvent.types";
@@ -17,6 +17,7 @@ import {
 } from "@/src/lib/util/helpers";
 import Link from "next/link";
 import { Temporal } from "@js-temporal/polyfill";
+import ScrollToTop from "@/src/components/features/buttons/ScrollToTopButton";
 
 const currentYear = new Date().getFullYear();
 let pastYear = 0;
@@ -26,40 +27,62 @@ if (currentYear > 2026) {
 
 // todo fix this
 // heirarchy values : no date set: -1, custom date set: 0, days: 1,1,2, weeks: 3,3,4 and so on
-const quickDateFilters = {
-  Today: ["Today", "Yesterday", "Past 3 Days"],
-  Weeks: ["This Week", "Past Week", "Past 3 Weeks"],
-  Months: ["This Month", "Past Month", "Past 3 Months", "Past 6 Months"],
-  Years:
-    pastYear > 0
-      ? [
-          pastYear.toString(),
-          (pastYear - 1).toString(),
-          (pastYear - 2).toString(),
-          (pastYear - 3).toString(),
-        ]
-      : ["2026"],
-};
-const quickDateFilterKey = Object.keys(quickDateFilters);
+// const quickDateFilters = {
+//   Today: ["Today", "Yesterday", "Past 3 Days"],
+//   Weeks: ["This Week", "Past Week", "Past 3 Weeks"],
+//   Months: ["This Month", "Past Month", "Past 3 Months", "Past 6 Months"],
+//   Years:
+//     pastYear > 0
+//       ? [
+//           pastYear.toString(),
+//           (pastYear - 1).toString(),
+//           (pastYear - 2).toString(),
+//           (pastYear - 3).toString(),
+//         ]
+//       : ["2026"],
+// };
 
 type SortDateValueType = "CREATED" | "UPDATED";
 type statusFilterType = "All" | "Active" | "Discontinued";
 const statusFilterKey = ["All", "Active", "Discontinued"];
+type ownershipFilterType = "all" | "created" | "received" | "transferred";
+const ownershipFilterKey = ["all", "created", "received", "transferred"];
+const quickDateFilters = [
+  "Today",
+  "Last 7 Days",
+  "Last 30 days",
+  "Last 3 months",
+  "Last 6 months",
+  "Year",
+];
+type quickDateFiltersKey =
+  | "Today"
+  | "Last 7 Days"
+  | "Last 30 days"
+  | "Last 3 months"
+  | "Last 6 months"
+  | "Year";
+type customDateFilterType = "ON" | "BEFORE" | "AFTER" | "FROM";
+const customDateFilterKey = ["ON", "BEFORE", "AFTER", "FROM"];
 interface dateFilters {
   range: string[]; // minDate,maxDate
   distinct: string[]; // separate dates
   hValue: number; // heirarchy value
 }
 export default function MyEvidencePage() {
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [isTopHidden, setIsTopHidden] = useState<boolean>(false);
   //Filters
   const [statusFilter, setStatusFilter] = useState<statusFilterType>("Active");
-  const [ownershipFilter, setRoleFilter] = useState<
-    "all" | "created" | "received" | "transferred"
-  >("all");
+  const [ownershipFilter, setOwnershipFilter] =
+    useState<ownershipFilterType>("all");
+  const [customDateFilter, setCustomDateFilter] =
+    useState<customDateFilterType>("ON");
+  const [quickDateFilter, setQuickDateFilter] =
+    useState<quickDateFiltersKey | null>(null);
   const [dateFilters, setDateFilters] = useState<dateFilters>({
-    range: [],
-    distinct: [],
+    range: ["02-03-2025", "02-04-2025"],
+    distinct: ["02-06-2026", "02-08-2025"],
     hValue: -1,
   });
   console.info("Dates filter set,", dateFilters);
@@ -77,6 +100,7 @@ export default function MyEvidencePage() {
   // 3. sort on final filtered
   const rLen = dateFilters.range.length;
   const dLen = dateFilters.distinct.length;
+  const hasDates = rLen == 2 || dLen > 0;
   const isStatusFilterMatch = (e: SocketEvidenceDetails) =>
     statusFilter === "All"
       ? e.status === "active" ||
@@ -117,6 +141,7 @@ export default function MyEvidencePage() {
 
   // for ranges, check if date is after minDate and before maxDate (exclusive)
   const isDatesFilterMatch = (rawDate: bigint) => {
+    return true;
     const isoDate = bigIntToIsoDate(rawDate);
     // empty arrays / invalid arrays = include all i.e return true
     let distinctMatch = true;
@@ -194,120 +219,102 @@ export default function MyEvidencePage() {
     return currH > hToCheck;
   };
 
+  // TODO 1. filter by description
+  // 2. filter by account address
   return (
-    <div className="relative h-full rounded-t-sm">
+    <div className="relative h-full ">
       {/* Top Menu */}
-      <div className="absolute top-0 right-0 left-0 backdrop-blur-xs bg-orange-100/60 rounded-t-md  border-orange-700">
-        <div className="pt-5 mb-7 px-3 flex flex-row justify-between">
-          {/* title */}
+      <div className="absolute top-0 right-0 left-0 px-5 pt-5 backdrop-blur-xs bg-orange-100/60 rounded-t-md border-b-2 border-orange-700">
+        {/* Search and sort */}
+        <div className="gap-x-2 flex items-center grid grid-cols-[5fr_0.8fr_2fr] ">
           <div>
-            <span className="font-sans font-[500] text-orange-700 text-3xl">
-              {statusFilter} Evidences{", "}
-              {ownershipFilter === "all"
-                ? "created, received or transferred"
-                : ownershipFilter}{" "}
-              by You:
-            </span>
-            {/* Date chips */}
-            <div
-              className={`${(rLen == 2 || dLen > 0) && "border-none"} border-2 h-5 mt-4 rounded-full  bg-orange-100 text-orange-700 text-sm *:font-sans *:font-bold *:border-y-2 *:border-orange-700`}
-            >
-              {rLen == 2 && (
-                <>
-                  <span className="pl-2 py-2 border-l-2 rounded-full">
-                    {dateFilters.range[0]}
-                  </span>
-                  <span className="px-1 border-x-2 mx-1 rounded-full">to</span>
-                  <span className="pr-2 py-2 border-r-2 rounded-full">
-                    {dateFilters.range[1]}
-                    <Button className="ml-2 px-2 rounded-full border-2 border-red-600 text-red-600 hover:text-white hover:bg-red-600/75 hover:border-red-600">
-                      X
-                    </Button>
-                  </span>
-                </>
-              )}
-              {dLen > 0 &&
-                dateFilters.distinct.map((d) => (
-                  <>
-                    <span key={d} className="ml-2 p-2 border-2 rounded-full">
-                      {d}
-                      <Button className="ml-2 px-2 rounded-full border-2 border-red-600 text-red-600 hover:text-white hover:bg-red-600/75 hover:border-red-600">
-                        X
-                      </Button>
-                    </span>
-                    {/* <Button className="hover:bg-orange-500! hover:text-white px-2 border-2 rounded-full">
-                      X
-                    </Button> */}
-                  </>
-                ))}
-            </div>
+            <Input
+              className="rounded-r-none"
+              placeholder="Search by ID, Account, Description etc"
+            />
           </div>
-          <div>
-            {/* Sorter */}
-            <div className="grid grid-cols-[2fr_1fr] gap-x-1">
-              <nav
-                className="grid grid-cols-[1fr_1fr] rounded-l-sm border-2 border-orange-700 bg-orange-50 font-mono font-[500] text-orange-900"
-                aria-label="Tabs"
-              >
-                <button
-                  onClick={() => {
-                    if (sortBy !== "UPDATED") {
-                      setSortBy("UPDATED");
-                    }
-                  }}
-                  type="button"
-                  className={
-                    sortBy === "UPDATED"
-                      ? "bg-orange-500 font-[600] text-white"
-                      : "hover:rounded-sm hover:font-[600] hover:bg-orange-200"
-                  }
-                >
-                  UPDATED
-                </button>
-                <button
-                  onClick={() => {
-                    if (sortBy !== "CREATED") {
-                      setSortBy("CREATED");
-                    }
-                  }}
-                  type="button"
-                  className={
-                    sortBy === "CREATED"
-                      ? "bg-orange-500 font-[600] text-white"
-                      : "hover:font-[600] hover:bg-orange-200"
-                  }
-                >
-                  CREATED
-                </button>
-              </nav>
+          {/* hide filter menu button */}
+          <Button
+            className={`flex items-center justify-between py-1 pl-2 rounded-r-sm border-2 border-orange-700 bg-orange-50 font-mono font-[600] text-orange-700 ${
+              isTopHidden
+                ? "hover:font-[600] hover:bg-orange-200"
+                : "bg-orange-500 font-[600] text-white"
+            }`}
+            onClick={() => {
+              isTopHidden ? setIsTopHidden(false) : setIsTopHidden(true);
+            }}
+          >
+            <span>EXPAND</span>
+            <Image
+              priority
+              src={!isTopHidden ? expandUp : expandDown}
+              alt="collapse top menu"
+            />
+          </Button>
+          {/* sorter */}
+          <div className="grid grid-cols-[2fr_1fr] gap-x-1">
+            <nav
+              className="grid grid-cols-[1fr_1fr] rounded-l-sm border-2 border-orange-700 bg-orange-50 font-mono font-[500] text-orange-900"
+              aria-label="Tabs"
+            >
               <button
-                id="sortOrder-select"
                 onClick={() => {
-                  if (sortOrder === "asc") {
-                    setSortOrder("desc");
-                  } else {
-                    setSortOrder("asc");
+                  if (sortBy !== "UPDATED") {
+                    setSortBy("UPDATED");
                   }
                 }}
                 type="button"
-                className={`px-2 font-mono font-[600] text-white bg-orange-500 rounded-r-sm border-2 border-orange-700`}
+                className={
+                  sortBy === "UPDATED"
+                    ? "bg-orange-500 font-[600] text-white"
+                    : "hover:rounded-sm hover:font-[600] hover:bg-orange-200"
+                }
               >
-                {sortOrder === "desc" ? (
-                  <p>
-                    LATEST <span className="text-xl">⭫</span>
-                  </p>
-                ) : (
-                  <p>
-                    OLDEST <span className="text-xl">⭭</span>
-                  </p>
-                )}
+                UPDATED
               </button>
-            </div>
+              <button
+                onClick={() => {
+                  if (sortBy !== "CREATED") {
+                    setSortBy("CREATED");
+                  }
+                }}
+                type="button"
+                className={
+                  sortBy === "CREATED"
+                    ? "bg-orange-500 font-[600] text-white"
+                    : "hover:font-[600] hover:bg-orange-200"
+                }
+              >
+                CREATED
+              </button>
+            </nav>
+            <button
+              id="sortOrder-select"
+              onClick={() => {
+                if (sortOrder === "asc") {
+                  setSortOrder("desc");
+                } else {
+                  setSortOrder("asc");
+                }
+              }}
+              type="button"
+              className={`px-2 font-mono font-[600] text-white bg-orange-500 rounded-r-sm border-2 border-orange-700`}
+            >
+              {sortOrder === "desc" ? (
+                <p>
+                  LATEST <span className="text-xl">⭫</span>
+                </p>
+              ) : (
+                <p>
+                  OLDEST <span className="text-xl">⭭</span>
+                </p>
+              )}
+            </button>
           </div>
         </div>
         {/* Filter Menu */}
         {!isTopHidden && (
-          <div className="relative grid grid-cols-[1fr_1fr] gap-x-3 p-4 bg-orange-100 m-2 rounded-sm border-2 border-orange-700">
+          <div className="relative grid grid-rows-[1fr_1fr] mt-2 gap-x-3 p-4 bg-orange-100 rounded-sm border-2 border-orange-700">
             {/* clear all filters */}
             <Button
               className="absolute top-1 right-1 rounded-sm"
@@ -319,69 +326,146 @@ export default function MyEvidencePage() {
                   hValue: -1,
                 });
                 setStatusFilter("Active");
-                setRoleFilter("all");
+                setOwnershipFilter("all");
               }}
             >
               <Image src={bin} alt="clear all date filters" />
             </Button>
 
-            {/* 1. search and status cum account filter */}
-            <div>
-              {/* search bar */}
-              <label
-                htmlFor="filter-select"
-                className="block font-mono font-medium text-lg text-orange-900"
-              >
-                Search Evidence:
-              </label>
-              <Input
-                className="mb-2 h-[52px] rounded-t-sm rounded-b-none"
-                placeholder="Search by ID, Creator, Current Owner etc"
-              />
-              {/* filter by status */}
-              <label
-                htmlFor="filter-select"
-                className="grid grid-cols-[2fr_5fr] gap-x-2 font-mono font-medium text-lg text-orange-900"
-              >
-                Status:<span>Filter By Ownership:</span>
-              </label>
-              <div className="grid grid-cols-[2fr_5fr] gap-x-2">
-                {/* Status */}
-                <div className="relative group rounded-sm flex items-center justify-between px-4 py-3 bg-orange-500 text-md text-white font-mono font-[600] border-2 border-orange-700">
-                  <p>{statusFilter}</p>
-                  <div
-                    className="text-center h-[20px] w-[20px] rounded-full 
-                          bg-orange-50 text-orange-500"
-                  >
-                    ⯆
-                  </div>
-                  <div className="z-100 absolute hidden group-hover:flex flex-col top-12 right-0 left-0 bg-orange-50 backdrop-blur-xs rounded-b-sm border-2 border-orange-700 text-orange-700 *:py-2 *:border-b-2 *:last:border-none">
-                    {statusFilterKey.map((s) => (
-                      <Button
-                        onClick={() => {
-                          setStatusFilter(s as statusFilterType);
-                        }}
-                        className="hover:bg-orange-500 hover:text-white hover:font-bold"
-                        key={s}
-                      >
-                        {s}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-
+            {/* row 1 */}
+            <div className="grid grid-cols-[2fr_3fr] gap-x-2">
+              <div>
+                <label
+                  htmlFor="filter-select"
+                  className="font-mono font-medium text-lg text-orange-900"
+                >
+                  Status:
+                </label>
                 <nav
-                  className="grid grid-cols-[1fr_1fr_1fr_1fr] rounded-b-sm border-2 border-orange-700 *:border-orange-700 bg-orange-50 font-mono font-[500] text-orange-900"
+                  className="grid grid-cols-[1fr_1fr_1fr] *:p-3 border-2 border-orange-700 *:border-orange-700 bg-orange-50 font-mono font-[500] text-orange-900"
+                  aria-label="Tabs"
+                >
+                  <button
+                    onClick={() => {
+                      if (statusFilter !== "All") {
+                        setStatusFilter("All");
+                      }
+                    }}
+                    type="button"
+                    className={`py-2 px-3 ${
+                      statusFilter === "All"
+                        ? "bg-orange-500 font-[600] text-white"
+                        : "hover:font-[600] hover:bg-orange-200"
+                    }`}
+                  >
+                    ALL
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (statusFilter !== "Active") {
+                        setStatusFilter("Active");
+                      }
+                    }}
+                    type="button"
+                    className={`py-2 px-3 border-x-2 ${
+                      statusFilter === "Active"
+                        ? "bg-orange-500 font-[600] text-white"
+                        : "hover:font-[600] hover:bg-orange-200"
+                    }`}
+                  >
+                    ACTIVE
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (statusFilter !== "Discontinued") {
+                        setStatusFilter("Discontinued");
+                      }
+                    }}
+                    type="button"
+                    className={`py-2 px-3 ${
+                      statusFilter === "Discontinued"
+                        ? "bg-orange-500 font-[600] text-white"
+                        : "hover:font-[600] hover:bg-orange-200"
+                    }`}
+                  >
+                    DISCONTINUED
+                  </button>
+                </nav>
+              </div>
+              {/* Custom */}
+              <div>
+                {/* Custom date select */}
+                <label className="block font-mono font-medium text-lg text-orange-900">
+                  Custom Date Filter:
+                </label>
+                <form
+                  onSubmit={handleCustomDateSubmit}
+                  className="grid grid-cols-[1fr_2fr_2fr_0.5fr] gap-x-1"
+                >
+                  <div className="group relative flex items-center justify-between text-sm text-orange-700 pl-2 border-2 rounded-sm bg-orange-100">
+                    <span className="peer font-[600]">{customDateFilter}</span>
+                    <div
+                      className={`peer z-101 top-12 right-0 left-0 absolute hidden group-hover:flex flex-col 
+                                  bg-orange-50 rounded-b-sm rounded-t-sm border-2 
+                                  font-[500] 
+                                  *:border-orange-700 *:py-2 *:border-t-2`}
+                    >
+                      {customDateFilterKey.map((c) => (
+                        <Button
+                          onClick={() => {
+                            setCustomDateFilter(c as customDateFilterType);
+                          }}
+                          className={
+                            c === customDateFilter
+                              ? "bg-orange-500 font-[600] text-white"
+                              : "hover:bg-orange-200 hover:font-[600]"
+                          }
+                          key={c}
+                        >
+                          {c}
+                        </Button>
+                      ))}
+                    </div>
+                    <span className="peer-hover:bg-orange-500 peer-hover:text-white mx-2 px-4 text-base rounded-full border-2 border-orange-700 text-orange-700">
+                      ⯆
+                    </span>
+                  </div>
+                  <Input name="minDate" className="h-[52px]" type="date" />
+                  <Input name="maxDate" className="h-[52px]" type="date" />
+                  <Button
+                    type="submit"
+                    variant="add"
+                    className="rounded-r-sm text-3xl text-center font-medium font-sans"
+                  >
+                    +
+                  </Button>
+                </form>
+              </div>
+            </div>
+
+            {/* row 2 */}
+            <div className="grid grid-cols-[1fr_1fr] gap-x-2">
+              {/* todo add scroll to top on filter change */}
+              {/* ownership */}
+              <div>
+                <label
+                  htmlFor="filter-select"
+                  className="font-mono font-medium text-lg text-orange-900"
+                >
+                  Ownership:
+                </label>
+                <nav
+                  className="grid grid-cols-[1fr_1fr_1fr_1fr] *:p-3 rounded-r-sm border-2 border-orange-700 *:border-orange-700 bg-orange-50 font-mono font-[500] text-orange-900"
                   aria-label="Tabs"
                 >
                   <button
                     onClick={() => {
                       if (ownershipFilter !== "all") {
-                        setRoleFilter("all");
+                        setOwnershipFilter("all");
                       }
                     }}
                     type="button"
-                    className={`py-2 px-3 ${
+                    className={`${
                       ownershipFilter === "all"
                         ? "bg-orange-500 font-[600] text-white"
                         : "hover:rounded-b-sm hover:font-[600] hover:bg-orange-200"
@@ -392,11 +476,11 @@ export default function MyEvidencePage() {
                   <button
                     onClick={() => {
                       if (ownershipFilter !== "created") {
-                        setRoleFilter("created");
+                        setOwnershipFilter("created");
                       }
                     }}
                     type="button"
-                    className={`py-2 px-3 border-x-2 ${
+                    className={`border-x-2 ${
                       ownershipFilter === "created"
                         ? "bg-orange-500 font-[600] text-white"
                         : "hover:font-[600] hover:bg-orange-200"
@@ -407,11 +491,11 @@ export default function MyEvidencePage() {
                   <button
                     onClick={() => {
                       if (ownershipFilter !== "received") {
-                        setRoleFilter("received");
+                        setOwnershipFilter("received");
                       }
                     }}
                     type="button"
-                    className={`py-2 px-3 ${
+                    className={`${
                       ownershipFilter === "received"
                         ? "bg-orange-500 font-[600] text-white"
                         : "hover:rounded-b-sm hover:font-[600] hover:bg-orange-200"
@@ -422,11 +506,11 @@ export default function MyEvidencePage() {
                   <button
                     onClick={() => {
                       if (ownershipFilter !== "transferred") {
-                        setRoleFilter("transferred");
+                        setOwnershipFilter("transferred");
                       }
                     }}
                     type="button"
-                    className={`py-2 px-3 border-l-2 ${
+                    className={`border-l-2 ${
                       ownershipFilter === "transferred"
                         ? "bg-orange-500 font-[600] text-white"
                         : "hover:rounded-b-sm hover:font-[600] hover:bg-orange-200"
@@ -436,95 +520,166 @@ export default function MyEvidencePage() {
                   </button>
                 </nav>
               </div>
-            </div>
-
-            {/* 2. date filter */}
-
-            <div>
-              <label className="block font-mono font-medium text-lg text-orange-900">
-                Filter By Date:
-              </label>
-              {/* Quick date select */}
-              <div
-                className="grid grid-cols-[1fr_1fr_1fr_1fr] gap-x-1 mb-2
-                        *:rounded-sm *:flex *:items-center *:justify-between *:px-4 *:py-3 *:bg-orange-500 *:text-md *:text-white *:font-mono *:font-[600] *:border-2 *:border-orange-700"
-              >
-                {Object.entries(quickDateFilters).map(([key, values]) => (
-                  <div key={key} className="relative group hover:rounded-sm">
-                    <p>{key}</p>
-                    <div
-                      className="flex items-center justify-center h-[20px] w-[20px] rounded-full 
-                          bg-orange-50 text-orange-500"
-                    >
-                      ⯆
-                    </div>
-                    <div className="hidden group-hover:flex flex-col absolute top-12 right-0 left-0 bg-orange-50 backdrop-blur-xs rounded-b-sm border-2 border-orange-700 text-orange-700 *:py-2 *:border-b-2 *:last:border-none">
-                      {values.map((i: any) => (
-                        <Button
-                          onClick={() => {
-                            handleQuickDateFilterSubmit(i);
-                          }}
-                          className="hover:bg-orange-500 hover:text-white hover:font-bold"
-                          key={i}
-                        >
-                          {i}
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-                ))}
+              {/* filter by account */}
+              <div>
+                <label className="block font-mono font-medium text-lg text-orange-900">
+                  Account:
+                </label>
+                <form className="grid grid-cols-[1fr_6fr_1fr] gap-x-1">
+                  <button
+                    onClick={() => {}}
+                    className="p-2 rounded-l-sm text-orange-700 font-mono font-semibold border-2 border-orange-700"
+                  >
+                    {ownershipFilter === "received"
+                      ? "FROM"
+                      : ownershipFilter === "transferred"
+                        ? "TO"
+                        : "BY"}
+                  </button>
+                  {/* Todo add known account dropdown */}
+                  <Input
+                    placeholder="Enter Account Address"
+                    name="account"
+                    className="h-[52px] rounded-l-none"
+                    type="search"
+                  />
+                  <Button
+                    type="submit"
+                    variant="add"
+                    className="rounded-r-sm text-3xl text-center font-medium font-sans"
+                  >
+                    +
+                  </Button>
+                </form>
               </div>
-
-              {/* Custom date select */}
-              <label className="block font-mono font-medium text-lg text-orange-900">
-                Custom Date Filter:
-              </label>
-              <form
-                onSubmit={handleCustomDateSubmit}
-                className="grid grid-cols-[1fr_1fr_1fr_0.5fr] gap-x-1"
-              >
-                <button
-                  onClick={() => {}}
-                  className="flex items-center justify-between p-2 rounded-l-sm bg-orange-500 text-sm text-white font-sans font-[600] border-2 border-orange-700"
-                >
-                  <p>On</p>
-                  <div className="h-[20px] w-[20px] rounded-full bg-orange-50 text-orange-500">
-                    ⯆
-                  </div>
-                </button>
-                <Input name="minDate" className="h-[52px]" type="date" />
-                <Input name="maxDate" className="h-[52px]" type="date" />
-                <Button
-                  type="submit"
-                  variant="add"
-                  className="rounded-full text-3xl text-center font-medium font-sans"
-                >
-                  +
-                </Button>
-              </form>
             </div>
           </div>
         )}
 
-        {/* TODO fix this button's bg and placement in firefox */}
-        {/* Hide Menu button */}
-        <button
-          className="flex flex-row items-center place-self-end mr-2 mb-[-50px] pr-2 rounded-full font-sans text-sm text-orange-700 font-semibold bg-orange-100 border-2 border-orange-700 "
-          onClick={() => {
-            isTopHidden ? setIsTopHidden(false) : setIsTopHidden(true);
-          }}
-        >
-          <Image
-            priority
-            src={!isTopHidden ? expandUp : expandDown}
-            alt="collapse top menu"
-          />
-          <span>Show filters</span>
-        </button>
+        {/* title */}
+        <div className="flex flex-row py-5 items-center bg-orange-100/60 font-sans font-[500] text-orange-700 text-3xl">
+          {/* status */}
+          <div className="min-w-50 group relative flex items-center justify-between border-2 rounded-sm px-2 bg-orange-100">
+            <span className="peer text-center w-full">{statusFilter}</span>
+            <div
+              className={`peer z-101 top-9 right-0 left-0 min-w-50 absolute hidden group-hover:flex flex-col 
+              bg-orange-50 backdrop-blur-xs rounded-b-sm rounded-t-sm border-2 border-orange-700 
+              text-base font-[500] text-orange-700 
+              *:py-2 *:nth-[2]:border-y-2 *:nth-[2]:border-orange-700 `}
+            >
+              {statusFilterKey.map((s) => (
+                <Button
+                  onClick={() => {
+                    setStatusFilter(s as statusFilterType);
+                    scrollContainerRef.current?.scrollTo({
+                      top: 0,
+                      behavior: "smooth",
+                    });
+                  }}
+                  className={
+                    s === statusFilter
+                      ? "bg-orange-500 font-[600] text-white"
+                      : "hover:bg-orange-200 hover:font-[600]"
+                  }
+                  key={s}
+                >
+                  {s.toUpperCase()}
+                </Button>
+              ))}
+            </div>
+            <span className="peer-hover:bg-orange-500 peer-hover:text-white ml-2 px-4 text-base rounded-full border-2 border-orange-700 text-orange-700">
+              ⯆
+            </span>
+          </div>
+          <span className="mx-2">Evidences,</span>
+          {/* ownership */}
+          <div className="border-2 min-w-50 group relative flex items-center justify-between rounded-sm px-2 bg-orange-100">
+            <span className="peer text-center w-full">{ownershipFilter}</span>
+            <div
+              className={`peer z-101 top-9 right-0 left-0 min-w-50 absolute hidden group-hover:flex flex-col 
+              bg-orange-50 backdrop-blur-xs rounded-b-sm rounded-t-sm border-2 *:border-orange-700 
+              text-base font-[500] text-orange-700 
+              *:py-2 *:border-t-2 *:first:border-none`}
+            >
+              {ownershipFilterKey.map((o) => (
+                <Button
+                  onClick={() => {
+                    setOwnershipFilter(o as ownershipFilterType);
+                    scrollContainerRef.current?.scrollTo({
+                      top: 0,
+                      behavior: "smooth",
+                    });
+                  }}
+                  className={`
+                      ${
+                        o === ownershipFilter
+                          ? "bg-orange-500 font-[600] text-white"
+                          : "hover:bg-orange-200 hover:font-[600]"
+                      }
+                    `}
+                  key={o}
+                >
+                  {o.toUpperCase()}
+                </Button>
+              ))}
+            </div>
+            <span className="peer-hover:bg-orange-500 peer-hover:text-white ml-2 px-4 text-base rounded-full border-2 border-orange-700 text-orange-700">
+              ⯆
+            </span>
+          </div>
+          <span className="mx-2 ">by You {quickDateFilter ? "@" : ":"}</span>
+          {/* date filter dropdown */}
+          <div
+            className={`group relative flex items-center justify-between min-w-50 p-1 pl-3 text-lg border-2 border-orange-700 rounded-sm 
+              ${quickDateFilter ? "bg-orange-500  text-white" : "text-orange-700"}`}
+          >
+            <span className={`peer font-[600]`}>
+              {quickDateFilter ? quickDateFilter : "Filter By Date"}
+            </span>
+            <div
+              className={`peer z-101 top-9 right-0 left-0 absolute hidden group-hover:flex flex-col min-w-40 
+                                  rounded-b-sm rounded-t-sm 
+                                  text-orange-700 font-[500] 
+                                  *:py-1 *:border-orange-700 *:border-b-2 *:border-x-2`}
+            >
+              {quickDateFilters.map((q) => (
+                <Button
+                  onClick={() => {
+                    setQuickDateFilter(q as quickDateFiltersKey);
+                  }}
+                  className={`bg-orange-50 first:border-t-2
+                    ${
+                      q === quickDateFilter
+                        ? "bg-orange-500 font-[600] text-white"
+                        : "hover:bg-orange-200 hover:font-[600]"
+                    }
+                  `}
+                  key={q}
+                >
+                  {q}
+                </Button>
+              ))}
+            </div>
+            <span
+              className={`${!quickDateFilter && "peer-hover:bg-orange-500 peer-hover:text-white"} bg-orange-100 mx-2 px-3 text-sm rounded-full border-2 border-orange-700 text-orange-700`}
+            >
+              ⯆
+            </span>
+          </div>
+          {quickDateFilter && (
+            <Button
+              onClick={() => setQuickDateFilter(null)}
+              className="ml-1 hover:bg-orange-500 hover:text-white p-2 font-bold text-sm rounded-r-sm border-2 border-orange-700 text-orange-700"
+            >
+              X
+            </Button>
+          )}
+        </div>
       </div>
       {/* Evidence list */}
       <div
-        className={`overflow-y-scroll h-full ${isTopHidden ? "pt-30" : "pt-84"}`}
+        ref={scrollContainerRef}
+        className={`scroll-smooth overflow-y-scroll h-full ml-5 pr-5 ${isTopHidden ? "pt-38" : "pt-88"}`}
       >
         {isLoadingEvidences ? (
           <p className="p-4 animate-pulse text-center text-sm text-gray-500">
@@ -544,7 +699,7 @@ export default function MyEvidencePage() {
             return (
               <div
                 key={key}
-                className={`mx-2 my-2 p-4 rounded-sm font-mono font-semibold text-lg border-2 ${e.status === "active" ? "text-green-800 bg-green-50 border-green-700" : "text-gray-600 bg-gray-50 border-gray-500"}`}
+                className={` my-2 p-4 rounded-sm font-mono font-semibold text-lg border-2 ${e.status === "active" ? "text-green-800 bg-green-50 border-green-700" : "text-gray-600 bg-gray-50 border-gray-500"}`}
               >
                 <Link href={`/evidence/${e.id}`} className="block font-mono">
                   ID:{" "}
@@ -577,6 +732,7 @@ export default function MyEvidencePage() {
           })
         )}
       </div>
+      <ScrollToTop scrollContainerRef={scrollContainerRef} />
     </div>
   );
 }
