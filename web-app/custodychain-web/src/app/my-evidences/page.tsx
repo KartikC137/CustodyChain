@@ -18,57 +18,18 @@ import {
 import Link from "next/link";
 import { Temporal } from "@js-temporal/polyfill";
 import ScrollToTop from "@/src/components/features/buttons/ScrollToTopButton";
+import {
+  statusFilterKey,
+  statusFilterType,
+  ownershipFilterKey,
+  ownershipFilterType,
+  dateFilters,
+  quickDateFiltersKey,
+  quickDateFilters,
+  customDateFilterKey,
+  customDateFilterType,
+} from "@/src/lib/util/filters";
 
-const currentYear = new Date().getFullYear();
-let pastYear = 0;
-if (currentYear > 2026) {
-  pastYear = currentYear;
-}
-
-// todo fix this
-// heirarchy values : no date set: -1, custom date set: 0, days: 1,1,2, weeks: 3,3,4 and so on
-// const quickDateFilters = {
-//   Today: ["Today", "Yesterday", "Past 3 Days"],
-//   Weeks: ["This Week", "Past Week", "Past 3 Weeks"],
-//   Months: ["This Month", "Past Month", "Past 3 Months", "Past 6 Months"],
-//   Years:
-//     pastYear > 0
-//       ? [
-//           pastYear.toString(),
-//           (pastYear - 1).toString(),
-//           (pastYear - 2).toString(),
-//           (pastYear - 3).toString(),
-//         ]
-//       : ["2026"],
-// };
-
-type SortDateValueType = "CREATED" | "UPDATED";
-type statusFilterType = "All" | "Active" | "Discontinued";
-const statusFilterKey = ["All", "Active", "Discontinued"];
-type ownershipFilterType = "all" | "created" | "received" | "transferred";
-const ownershipFilterKey = ["all", "created", "received", "transferred"];
-const quickDateFilters = [
-  "Today",
-  "Last 7 Days",
-  "Last 30 days",
-  "Last 3 months",
-  "Last 6 months",
-  "Year",
-];
-type quickDateFiltersKey =
-  | "Today"
-  | "Last 7 Days"
-  | "Last 30 days"
-  | "Last 3 months"
-  | "Last 6 months"
-  | "Year";
-type customDateFilterType = "ON" | "BEFORE" | "AFTER" | "FROM";
-const customDateFilterKey = ["ON", "BEFORE", "AFTER", "FROM"];
-interface dateFilters {
-  range: string[]; // minDate,maxDate
-  distinct: string[]; // separate dates
-  hValue: number; // heirarchy value
-}
 export default function MyEvidencePage() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [isTopHidden, setIsTopHidden] = useState<boolean>(false);
@@ -81,14 +42,13 @@ export default function MyEvidencePage() {
   const [quickDateFilter, setQuickDateFilter] =
     useState<quickDateFiltersKey | null>(null);
   const [dateFilters, setDateFilters] = useState<dateFilters>({
-    range: ["02-03-2025", "02-04-2025"],
-    distinct: ["02-06-2026", "02-08-2025"],
-    hValue: -1,
+    min: undefined,
+    on: undefined,
+    max: undefined,
   });
-  console.info("Dates filter set,", dateFilters);
 
   // Sort values
-  const [sortBy, setSortBy] = useState<SortDateValueType>("UPDATED");
+  const [sortBy, setSortBy] = useState<"CREATED" | "UPDATED">("UPDATED");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
   const { account } = useWeb3();
@@ -98,15 +58,14 @@ export default function MyEvidencePage() {
   // 1. status filter -> if discontinued and dates exist -> match discontinued and discontinuedAt
   // 2. Ownership filter -> check dates filter on every type
   // 3. sort on final filtered
-  const rLen = dateFilters.range.length;
-  const dLen = dateFilters.distinct.length;
-  const hasDates = rLen == 2 || dLen > 0;
+
   const isStatusFilterMatch = (e: SocketEvidenceDetails) =>
-    statusFilter === "All"
-      ? e.status === "active" ||
-        (e.status === "discontinued" &&
-          isDatesFilterMatch(e.discontinuedAt as bigint))
-      : e.status === statusFilter.toLowerCase();
+    statusFilter === "Active"
+      ? e.status === "active"
+      : statusFilter === "Discontinued"
+        ? e.status === "discontinued" &&
+          isDatesFilterMatch(e.discontinuedAt as bigint)
+        : e.status === "active" || e.status === "discontinued";
 
   const isOwnershipfilterMatch = (e: SocketEvidenceDetails) =>
     ownershipFilter === "created"
@@ -116,43 +75,23 @@ export default function MyEvidencePage() {
           e.creator !== account &&
           isDatesFilterMatch(e.transferredAt)
         : ownershipFilter === "transferred"
-          ? e.currentOwner !== account && isDatesFilterMatch(e.createdAt)
-          : (e.creator === account && isDatesFilterMatch(e.createdAt)) ||
-            (e.currentOwner === account && isDatesFilterMatch(e.transferredAt));
+          ? e.currentOwner !== account && isDatesFilterMatch(e.transferredAt)
+          : isDatesFilterMatch(e.createdAt) ||
+            isDatesFilterMatch(e.transferredAt);
 
-  /**
-   *
-   * @param firstDate only firstDate: checks if firstDate is unique filter
-   * @param maxDate firstDate != maxDate : checks if the range matches, firstDate == maxDate: checks if the firstDate is within the range
-   * @returns boolean
-   */
-  const isDateIncluded = (
-    firstDate: Temporal.PlainDate | string,
-    maxDate?: Temporal.PlainDate | string,
-  ) => {
-    const d = firstDate.toString();
-    if (!maxDate) {
-      return dateFilters.distinct.includes(d);
-    } else {
-      const maxD = maxDate.toString();
-      return d >= dateFilters.range[0] && dateFilters.range[1] <= maxD;
-    }
-  };
-
-  // for ranges, check if date is after minDate and before maxDate (exclusive)
+  // for ranges, check if date is after minDate (excluded) and before maxDate (included)
   const isDatesFilterMatch = (rawDate: bigint) => {
-    return true;
     const isoDate = bigIntToIsoDate(rawDate);
-    // empty arrays / invalid arrays = include all i.e return true
-    let distinctMatch = true;
-    let rangeMatch = true;
-    if (rLen === 2) {
-      rangeMatch = isDateIncluded(isoDate, isoDate);
+    if (dateFilters.on !== undefined) {
+      return isoDate === dateFilters.on;
+    } else if (dateFilters.min !== undefined && dateFilters.max !== undefined) {
+      return isoDate >= dateFilters.min && isoDate <= dateFilters.max;
+    } else if (dateFilters.min !== undefined) {
+      return isoDate >= dateFilters.min;
+    } else if (dateFilters.max !== undefined) {
+      return isoDate <= dateFilters.max;
     }
-    if (dLen > 0) {
-      distinctMatch = isDateIncluded(isoDate);
-    }
-    return distinctMatch && rangeMatch;
+    return true;
   };
 
   const filteredEvidences = evidences.filter(
@@ -176,55 +115,72 @@ export default function MyEvidencePage() {
     }
   });
 
+  const hasDates = dateFilters.max || dateFilters.min || dateFilters.on;
   function handleCustomDateSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    setDateFilters({
+      min: undefined,
+      on: undefined,
+      max: undefined,
+    });
     const formData = new FormData(e.currentTarget);
-    const minDate = formData.get("minDate") as string;
-    const maxDate = formData.get("maxDate") as string;
-    setDateFilters((prev) => ({
-      ...prev,
-      range: [minDate, maxDate],
-    }));
+    const _min =
+      customDateFilter === "BEFORE" ? undefined : formData.get("minDate");
+    const _max =
+      customDateFilter === "AFTER" ? undefined : formData.get("maxDate");
+    e.currentTarget.reset();
+    setDateFilters({
+      min: customDateFilter === "ON" ? undefined : (_min as string),
+      on: customDateFilter === "ON" ? (_min as string) : undefined,
+      max: _max as string,
+    });
   }
 
-  function handleQuickDateFilterSubmit(i: string) {
+  function handleQuickDateFilterSubmit(q: quickDateFiltersKey) {
     const currentDate = Temporal.Now.plainDateISO();
-    let dis: string = "";
-    let dur: string[] = [];
-    if (i === "Today") {
-      if (dateFilters.distinct.includes(currentDate.toString())) {
-      } else {
-        dis = currentDate.toString();
-      }
-    } else if (i === "Yesterday") {
-      const yd = currentDate.subtract({ days: 1 }).toString();
-      if (dateFilters.distinct.includes(yd)) {
-      } else {
-        dis = yd;
-      }
-    } else if (i === "Past 3 Days") {
-      const minDate = currentDate.subtract({ days: 3 }).toString();
-      const maxDate = currentDate.toString();
-      dur.push(minDate, maxDate);
-    }
-    setDateFilters((prev) => ({
-      ...prev,
-      distinct: dis === "" ? [...prev.distinct] : [...prev.distinct, dis],
-      range: dur,
-    }));
-  }
+    let _min = undefined;
+    let _on = undefined;
+    let _max = q === "Today" ? undefined : currentDate.toString();
 
-  const isQuickDateFilterDisabled = (hToCheck: number) => {
-    const currH = dateFilters.hValue;
-    return currH > hToCheck;
-  };
+    switch (q) {
+      case "Today":
+        _min = undefined;
+        _on = currentDate.toString();
+        break;
+      case "Last 7 Days":
+        _min = currentDate.subtract({ days: 6 }).toString();
+        break;
+      case "Last 30 days":
+        _min = currentDate.subtract({ days: 29 }).toString();
+        break;
+      case "Last 3 months":
+        _min = currentDate.subtract({ months: 2 }).toString();
+        break;
+      case "Last 6 months":
+        _min = currentDate.subtract({ months: 5 }).toString();
+        break;
+      case "2026":
+        _min = "2026-01-01";
+        break;
+      default:
+        _min = undefined;
+        _on = undefined;
+        _max = undefined;
+        break;
+    }
+    setDateFilters({
+      min: _min,
+      on: _on,
+      max: _max,
+    });
+  }
 
   // TODO 1. filter by description
   // 2. filter by account address
   return (
     <div className="relative h-full ">
       {/* Top Menu */}
-      <div className="absolute top-0 right-0 left-0 px-5 pt-5 backdrop-blur-xs bg-orange-100/60 rounded-t-md border-b-2 border-orange-700">
+      <div className="absolute top-0 right-0 left-0 px-5 pt-5 backdrop-blur-xs bg-orange-50/60 rounded-t-md border-b-2 border-orange-700">
         {/* Search and sort */}
         <div className="gap-x-2 flex items-center grid grid-cols-[5fr_0.8fr_2fr] ">
           <div>
@@ -254,7 +210,7 @@ export default function MyEvidencePage() {
           {/* sorter */}
           <div className="grid grid-cols-[2fr_1fr] gap-x-1">
             <nav
-              className="grid grid-cols-[1fr_1fr] rounded-l-sm border-2 border-orange-700 bg-orange-50 font-mono font-[500] text-orange-900"
+              className="grid grid-cols-[1fr_1fr] rounded-l-sm border-2 border-orange-700 bg-orange-50 font-mono font-[500] text-orange-700"
               aria-label="Tabs"
             >
               <button
@@ -321,9 +277,9 @@ export default function MyEvidencePage() {
               variant="delete"
               onClick={() => {
                 setDateFilters({
-                  range: [],
-                  distinct: [],
-                  hValue: -1,
+                  min: undefined,
+                  on: undefined,
+                  max: undefined,
                 });
                 setStatusFilter("Active");
                 setOwnershipFilter("all");
@@ -337,12 +293,12 @@ export default function MyEvidencePage() {
               <div>
                 <label
                   htmlFor="filter-select"
-                  className="font-mono font-medium text-lg text-orange-900"
+                  className="font-mono font-medium text-lg text-orange-700"
                 >
                   Status:
                 </label>
                 <nav
-                  className="grid grid-cols-[1fr_1fr_1fr] *:p-3 border-2 border-orange-700 *:border-orange-700 bg-orange-50 font-mono font-[500] text-orange-900"
+                  className="grid grid-cols-[1fr_1fr_1fr] *:p-3 border-2 border-orange-700 *:border-orange-700 bg-orange-50 font-mono font-[500] text-orange-700"
                   aria-label="Tabs"
                 >
                   <button
@@ -392,17 +348,19 @@ export default function MyEvidencePage() {
                   </button>
                 </nav>
               </div>
-              {/* Custom */}
+              {/* Custom date*/}
               <div>
-                {/* Custom date select */}
-                <label className="block font-mono font-medium text-lg text-orange-900">
+                <label className="block font-mono font-medium text-lg text-orange-700">
                   Custom Date Filter:
                 </label>
                 <form
-                  onSubmit={handleCustomDateSubmit}
+                  onSubmit={(e) => {
+                    setQuickDateFilter(null);
+                    handleCustomDateSubmit(e);
+                  }}
                   className="grid grid-cols-[1fr_2fr_2fr_0.5fr] gap-x-1"
                 >
-                  <div className="group relative flex items-center justify-between text-sm text-orange-700 pl-2 border-2 rounded-sm bg-orange-100">
+                  <div className="group relative flex items-center justify-between text-sm text-orange-700 pl-2 border-2 rounded-sm bg-orange-50">
                     <span className="peer font-[600]">{customDateFilter}</span>
                     <div
                       className={`peer z-101 top-12 right-0 left-0 absolute hidden group-hover:flex flex-col 
@@ -426,12 +384,26 @@ export default function MyEvidencePage() {
                         </Button>
                       ))}
                     </div>
-                    <span className="peer-hover:bg-orange-500 peer-hover:text-white mx-2 px-4 text-base rounded-full border-2 border-orange-700 text-orange-700">
+                    <span className="peer-hover:bg-orange-500 peer-hover:text-white mx-2 px-4 text-base rounded-full border-2 border-orange-700 text-orange-700 bg-orange-100">
                       ⯆
                     </span>
                   </div>
-                  <Input name="minDate" className="h-[52px]" type="date" />
-                  <Input name="maxDate" className="h-[52px]" type="date" />
+                  <Input
+                    name="minDate"
+                    disabled={customDateFilter === "BEFORE"}
+                    className="h-[52px]"
+                    type="date"
+                    required
+                  />
+                  <Input
+                    name="maxDate"
+                    disabled={
+                      customDateFilter === "AFTER" || customDateFilter === "ON"
+                    }
+                    className="h-[52px]"
+                    type="date"
+                    required
+                  />
                   <Button
                     type="submit"
                     variant="add"
@@ -450,12 +422,12 @@ export default function MyEvidencePage() {
               <div>
                 <label
                   htmlFor="filter-select"
-                  className="font-mono font-medium text-lg text-orange-900"
+                  className="font-mono font-medium text-lg text-orange-700"
                 >
                   Ownership:
                 </label>
                 <nav
-                  className="grid grid-cols-[1fr_1fr_1fr_1fr] *:p-3 rounded-r-sm border-2 border-orange-700 *:border-orange-700 bg-orange-50 font-mono font-[500] text-orange-900"
+                  className="grid grid-cols-[1fr_1fr_1fr_1fr] *:p-3 rounded-r-sm border-2 border-orange-700 *:border-orange-700 bg-orange-50 font-mono font-[500] text-orange-700"
                   aria-label="Tabs"
                 >
                   <button
@@ -522,7 +494,7 @@ export default function MyEvidencePage() {
               </div>
               {/* filter by account */}
               <div>
-                <label className="block font-mono font-medium text-lg text-orange-900">
+                <label className="block font-mono font-medium text-lg text-orange-700">
                   Account:
                 </label>
                 <form className="grid grid-cols-[1fr_6fr_1fr] gap-x-1">
@@ -557,7 +529,7 @@ export default function MyEvidencePage() {
         )}
 
         {/* title */}
-        <div className="flex flex-row py-5 items-center bg-orange-100/60 font-sans font-[500] text-orange-700 text-3xl">
+        <div className="flex flex-row py-5 items-center font-sans font-[500] text-orange-700 text-3xl">
           {/* status */}
           <div className="min-w-50 group relative flex items-center justify-between border-2 rounded-sm px-2 bg-orange-100">
             <span className="peer text-center w-full">{statusFilter}</span>
@@ -587,7 +559,7 @@ export default function MyEvidencePage() {
                 </Button>
               ))}
             </div>
-            <span className="peer-hover:bg-orange-500 peer-hover:text-white ml-2 px-4 text-base rounded-full border-2 border-orange-700 text-orange-700">
+            <span className="peer-hover:bg-orange-500 peer-hover:text-white ml-2 px-4 text-base rounded-full border-2 border-orange-700 text-orange-700 bg-orange-50">
               ⯆
             </span>
           </div>
@@ -623,19 +595,47 @@ export default function MyEvidencePage() {
                 </Button>
               ))}
             </div>
-            <span className="peer-hover:bg-orange-500 peer-hover:text-white ml-2 px-4 text-base rounded-full border-2 border-orange-700 text-orange-700">
+            <span className="peer-hover:bg-orange-500 peer-hover:text-white ml-2 px-4 text-base rounded-full border-2 border-orange-700 text-orange-700 bg-orange-50">
               ⯆
             </span>
           </div>
-          <span className="mx-2 ">by You {quickDateFilter ? "@" : ":"}</span>
-          {/* date filter dropdown */}
+          <span className="mx-2 ">by You @</span>
+          {/* quick date filter dropdown */}
           <div
-            className={`group relative flex items-center justify-between min-w-50 p-1 pl-3 text-lg border-2 border-orange-700 rounded-sm 
-              ${quickDateFilter ? "bg-orange-500  text-white" : "text-orange-700"}`}
+            className={`group relative flex items-center justify-between p-1 pl-3 text-lg border-2 border-orange-700 rounded-sm 
+              ${hasDates ? "bg-orange-500  text-white" : "bg-orange-100 text-orange-700"}`}
           >
-            <span className={`peer font-[600]`}>
-              {quickDateFilter ? quickDateFilter : "Filter By Date"}
-            </span>
+            <div className={`peer font-[600]`}>
+              {hasDates ? (
+                dateFilters.on ? (
+                  <div>{dateFilters.on}</div>
+                ) : dateFilters.max && dateFilters.min ? (
+                  <div className="grid grid-cols-[2fr_0.5fr_2fr]">
+                    <span>{dateFilters.min}</span>
+                    <span className="mr-1 px-1 text-center bg-orange-100 text-orange-700 rounded-full">
+                      to
+                    </span>
+                    <span>{dateFilters.max}</span>
+                  </div>
+                ) : dateFilters.min ? (
+                  <div className="grid grid-cols-2">
+                    <span className="mr-2 text-center bg-orange-100 text-orange-700 rounded-full">
+                      after
+                    </span>
+                    <span>{dateFilters.min}</span>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2">
+                    <span className="mr-2 text-center bg-orange-100 text-orange-700 rounded-full">
+                      before
+                    </span>
+                    <span>{dateFilters.max}</span>
+                  </div>
+                )
+              ) : (
+                "Filter By Date"
+              )}
+            </div>
             <div
               className={`peer z-101 top-9 right-0 left-0 absolute hidden group-hover:flex flex-col min-w-40 
                                   rounded-b-sm rounded-t-sm 
@@ -645,7 +645,8 @@ export default function MyEvidencePage() {
               {quickDateFilters.map((q) => (
                 <Button
                   onClick={() => {
-                    setQuickDateFilter(q as quickDateFiltersKey);
+                    setQuickDateFilter(q);
+                    handleQuickDateFilterSubmit(q);
                   }}
                   className={`bg-orange-50 first:border-t-2
                     ${
@@ -661,19 +662,27 @@ export default function MyEvidencePage() {
               ))}
             </div>
             <span
-              className={`${!quickDateFilter && "peer-hover:bg-orange-500 peer-hover:text-white"} bg-orange-100 mx-2 px-3 text-sm rounded-full border-2 border-orange-700 text-orange-700`}
+              className={`${!hasDates && "group-hover:bg-orange-500 group-hover:text-white peer-hover:bg-orange-500 peer-hover:text-white"} bg-orange-50 mx-2 px-3 text-sm rounded-full border-2 border-orange-700 text-orange-700`}
             >
               ⯆
             </span>
           </div>
-          {quickDateFilter && (
+          {hasDates && (
             <Button
-              onClick={() => setQuickDateFilter(null)}
-              className="ml-1 hover:bg-orange-500 hover:text-white p-2 font-bold text-sm rounded-r-sm border-2 border-orange-700 text-orange-700"
+              onClick={() => {
+                setDateFilters({
+                  min: undefined,
+                  on: undefined,
+                  max: undefined,
+                });
+                setQuickDateFilter(null);
+              }}
+              className="ml-1 hover:bg-red-500 hover:text-white p-2 font-bold text-sm rounded-r-sm border-2 border-orange-700 text-red-700"
             >
               X
             </Button>
           )}
+          <span className="ml-2">:</span>
         </div>
       </div>
       {/* Evidence list */}
@@ -699,7 +708,7 @@ export default function MyEvidencePage() {
             return (
               <div
                 key={key}
-                className={` my-2 p-4 rounded-sm font-mono font-semibold text-lg border-2 ${e.status === "active" ? "text-green-800 bg-green-50 border-green-700" : "text-gray-600 bg-gray-50 border-gray-500"}`}
+                className={`my-2 p-4 rounded-sm font-mono font-semibold text-lg border-2 ${e.status === "active" ? "text-green-800 bg-green-50 border-green-700" : "text-gray-600 bg-gray-50 border-gray-500"}`}
               >
                 <Link href={`/evidence/${e.id}`} className="block font-mono">
                   ID:{" "}
