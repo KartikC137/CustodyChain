@@ -13,6 +13,11 @@ import {
   EvidenceDetailsSchema,
 } from "@/src/lib/types/evidence.types";
 import { fetchSingleEvidence } from "../api/evidences/fetchEvidence";
+import { getSocket } from "@/src/config/socket";
+import {
+  SocketEvidenceDetails,
+  SocketUpdateType,
+} from "../lib/types/socketEvent.types";
 
 /**
  * @notice Primarily fetches data from DB but chain of custody requires , fallback is rpc calls to the contract.
@@ -160,6 +165,22 @@ export default function useFetchSingleEvidence(evidenceId: Bytes32) {
     } else if (!publicClient) {
       setIsLoading(true);
     }
+
+    const socket = getSocket();
+    const handleUpdate = (payload: SocketUpdateType) => {
+      if (
+        payload.status === "client_only" &&
+        payload.evidence.id === evidenceId
+      ) {
+        console.log(`Socket update received for ${evidenceId}, refetching...`);
+        fetchEvidenceData(evidenceId);
+      }
+    };
+
+    socket.on("activity_update", handleUpdate);
+    return () => {
+      socket.off("activity_update", handleUpdate);
+    };
   }, [evidenceId, fetchEvidenceData, publicClient]);
 
   return { dataSource, isLoading, error, evidenceDetails, fetchEvidenceData };

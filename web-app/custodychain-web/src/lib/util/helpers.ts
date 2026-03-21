@@ -45,10 +45,10 @@ export function validHashCheck(hash: string, text: "Metadata Hash" | "ID") {
   }
 }
 
-export function validAddressCheck(address: string) {
+export function validAddressCheck(address: string | undefined) {
   const result = AddressSchema.safeParse(address);
-  if (address === "") {
-    return `Enter New Owner address`;
+  if (address === "" || !address) {
+    return `Enter Account address`;
   } else if (!address.startsWith("0x")) {
     return `Address must begin with "0x..."`;
   } else if (address.length !== 42) {

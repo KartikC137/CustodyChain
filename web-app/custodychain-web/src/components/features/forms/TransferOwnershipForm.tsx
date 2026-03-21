@@ -14,16 +14,17 @@ import { Address, Bytes32 } from "@/src/lib/types/solidity.types";
 import { ActivityInfoForPanel } from "@/src/lib/types/activity.types";
 import { evidenceAbi } from "@/src/lib/contracts/chain-of-custody-abi";
 import { insertClientActivity } from "@/src/api/activities/insertClientActivity";
-import { useEvidences } from "@/src/context-and-hooks/EvidencesContext";
 import { validAddressCheck } from "@/src/lib/util/helpers";
 
+/**
+ * @todo IMP: switch to ref for input checking instead of state
+ */
 interface TransferOwnershipFormProps {
   creator: Address;
   contractAddress: Address;
   status: "active" | "discontinued";
   currentOwner: Address;
   evidenceId: Bytes32;
-  onTransferFormSuccess: (success: boolean) => void;
 }
 
 export default function TransferOwnershipForm({
@@ -32,11 +33,9 @@ export default function TransferOwnershipForm({
   status,
   currentOwner,
   evidenceId,
-  onTransferFormSuccess,
 }: TransferOwnershipFormProps) {
   const { account, chain, walletClient, publicClient } = useWeb3();
   const { addPendingActivity } = useActivities();
-  const { removeEvidence } = useEvidences();
 
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [nextOwner, setNextOwner] = useState<string | "">("");
@@ -59,31 +58,26 @@ export default function TransferOwnershipForm({
 
     if (!publicClient || !walletClient || !account || !chain) {
       setError("Wallet has been disconnected");
-      onTransferFormSuccess(false);
       return;
     }
 
     if (status !== "active") {
       setError("This evidence is not active!");
-      onTransferFormSuccess(false);
       return;
     }
 
     if (!nextOwner) {
       setError("Invalid next owner address");
-      onTransferFormSuccess(false);
       return;
     }
 
     if (!currentOwner || account.toLowerCase() !== currentOwner.toLowerCase()) {
       setError("Invalid current owner address");
-      onTransferFormSuccess(false);
       return;
     }
 
     if (account.toLowerCase() === nextOwner.toLowerCase()) {
       setError("You are the Current Owner!");
-      onTransferFormSuccess(false);
       return;
     }
 
@@ -123,11 +117,6 @@ export default function TransferOwnershipForm({
         owner: nextOwner,
         initializedAt: initializedAt,
       });
-      // Remove the evidence from context only if creator is not the account
-      if (creator.toLowerCase() !== account) {
-        removeEvidence(evidenceId);
-      }
-      onTransferFormSuccess(true);
     } catch (err) {
       //todo: expect more errors
       if (err instanceof BaseError) {
@@ -155,7 +144,6 @@ export default function TransferOwnershipForm({
       } else {
         setError("An unexpected contract error occured");
       }
-      onTransferFormSuccess(false);
     } finally {
       setIsLoading(false);
     }

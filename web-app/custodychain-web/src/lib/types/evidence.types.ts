@@ -25,7 +25,11 @@ export const EvidenceDetailsSchema = BaseEvidenceSchema.extend({
   contractAddress: AddressSchema,
   chainOfCustody: z.array(CustodyRecordSchema),
 });
+export const ContextEvidenceSchema = BaseEvidenceSchema.extend({
+  chainOfCustody: z.string(),
+});
 
 export type EvidenceSummaryType = z.infer<typeof EvidenceSummarySchema>;
 export type CustodyRecord = z.infer<typeof CustodyRecordSchema>;
 export type EvidenceDetails = z.infer<typeof EvidenceDetailsSchema>;
+export type ContextEvidenceDetails = z.infer<typeof ContextEvidenceSchema>;

@@ -14,6 +14,8 @@ import { SocketEvidenceDetails } from "@/src/lib/types/socketEvent.types";
 import {
   bigintToDateWithTimeStamp,
   bigIntToIsoDate,
+  parseChainOfCustody,
+  validAddressCheck,
 } from "@/src/lib/util/helpers";
 import Link from "next/link";
 import { Temporal } from "@js-temporal/polyfill";
@@ -21,22 +23,29 @@ import ScrollToTop from "@/src/components/features/buttons/ScrollToTopButton";
 import {
   statusFilterKey,
   statusFilterType,
-  ownershipFilterKey,
-  ownershipFilterType,
+  baseActTypeFilterKey,
+  baseActTypeFilterType,
   dateFilters,
   quickDateFiltersKey,
   quickDateFilters,
   customDateFilterKey,
   customDateFilterType,
 } from "@/src/lib/util/filters";
+import { Address } from "@/src/lib/types/solidity.types";
+import { CustodyRecord } from "@/src/lib/types/evidence.types";
 
+type actTypeFilterType = "acted" | baseActTypeFilterType;
+const actTypeFilterKey = ["acted", ...baseActTypeFilterKey];
 export default function MyEvidencePage() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const accountInputLabelRef = useRef<HTMLLabelElement>(null);
   const [isTopHidden, setIsTopHidden] = useState<boolean>(false);
+
   //Filters
+  const [accountFilter, setAccountFilter] = useState<Address | null>(null);
   const [statusFilter, setStatusFilter] = useState<statusFilterType>("Active");
-  const [ownershipFilter, setOwnershipFilter] =
-    useState<ownershipFilterType>("all");
+  const [actTypeFilter, setActTypeFilter] =
+    useState<actTypeFilterType>("acted");
   const [customDateFilter, setCustomDateFilter] =
     useState<customDateFilterType>("ON");
   const [quickDateFilter, setQuickDateFilter] =
@@ -52,35 +61,59 @@ export default function MyEvidencePage() {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
   const { account } = useWeb3();
-  const { evidences, isLoadingEvidences } = useEvidences();
+  const { evidences, isLoadingEvidences, uniqueAddresses } = useEvidences();
 
   // Filter and sort order:
   // 1. status filter -> if discontinued and dates exist -> match discontinued and discontinuedAt
   // 2. Ownership filter -> check dates filter on every type
   // 3. sort on final filtered
 
-  const isStatusFilterMatch = (e: SocketEvidenceDetails) =>
+  //todo requires implementation
+  const isAccountFilterMatch = (_accountToMatch: Address) => {
+    if (!accountFilter || accountFilter === account) return true;
+    return _accountToMatch === accountFilter;
+  };
+  const isStatusFilterMatch = (
+    status: string,
+    _discontinuedAt: bigint | null | undefined,
+  ) =>
     statusFilter === "Active"
-      ? e.status === "active"
-      : statusFilter === "Discontinued"
-        ? e.status === "discontinued" &&
-          isDatesFilterMatch(e.discontinuedAt as bigint)
-        : e.status === "active" || e.status === "discontinued";
+      ? status === "active"
+      : statusFilter === "Archived"
+        ? status === "discontinued" && isDatesFilterMatch(_discontinuedAt)
+        : status === "active" || status === "discontinued";
 
-  const isOwnershipfilterMatch = (e: SocketEvidenceDetails) =>
-    ownershipFilter === "created"
-      ? e.creator === account && isDatesFilterMatch(e.createdAt)
-      : ownershipFilter === "received"
-        ? e.currentOwner === account &&
-          e.creator !== account &&
-          isDatesFilterMatch(e.transferredAt)
-        : ownershipFilter === "transferred"
-          ? e.currentOwner !== account && isDatesFilterMatch(e.transferredAt)
-          : isDatesFilterMatch(e.createdAt) ||
-            isDatesFilterMatch(e.transferredAt);
+  const isOwnershipfilterMatch = (
+    _creator: Address,
+    _createdAt: bigint,
+    _chainOfCustody: CustodyRecord[],
+    _currentOwner: Address,
+    _transferredAt: bigint,
+  ) =>
+    actTypeFilter === "created"
+      ? _creator === account && isDatesFilterMatch(_createdAt)
+      : actTypeFilter === "received"
+        ? _chainOfCustody.some(
+            (r, i, arr) =>
+              i > 0 &&
+              r.owner === account &&
+              isAccountFilterMatch(arr[i - 1].owner) &&
+              isDatesFilterMatch(r.timestamp),
+          )
+        : actTypeFilter === "transferred"
+          ? _chainOfCustody.some(
+              (r, i, arr) =>
+                r.owner === account &&
+                i < arr.length - 1 &&
+                isAccountFilterMatch(arr[i + 1].owner) &&
+                isDatesFilterMatch(arr[i + 1].timestamp),
+            )
+          : isDatesFilterMatch(_createdAt) ||
+            isDatesFilterMatch(_transferredAt);
 
   // for ranges, check if date is after minDate (excluded) and before maxDate (included)
-  const isDatesFilterMatch = (rawDate: bigint) => {
+  const isDatesFilterMatch = (rawDate: bigint | null | undefined) => {
+    if (!rawDate) return true;
     const isoDate = bigIntToIsoDate(rawDate);
     if (dateFilters.on !== undefined) {
       return isoDate === dateFilters.on;
@@ -95,11 +128,19 @@ export default function MyEvidencePage() {
   };
 
   const filteredEvidences = evidences.filter(
-    (e) => isStatusFilterMatch(e) && isOwnershipfilterMatch(e),
+    (e) =>
+      isStatusFilterMatch(e.status, e.discontinuedAt) &&
+      isOwnershipfilterMatch(
+        e.creator,
+        e.createdAt,
+        parseChainOfCustody(e.chainOfCustody),
+        e.currentOwner,
+        e.transferredAt,
+      ),
   );
 
   /**
-   * @notice Currently sorting directly on the filtered
+   * @notice IMP: Currently sorting directly on the filtered
    */
   filteredEvidences.sort((a, b) => {
     const aUpdatedAt = a.discontinuedAt || a.transferredAt;
@@ -143,6 +184,13 @@ export default function MyEvidencePage() {
     let _max = q === "Today" ? undefined : currentDate.toString();
 
     switch (q) {
+      case "Custom Date":
+        _max = undefined;
+        if (isTopHidden) {
+          setIsTopHidden(false);
+        }
+        setQuickDateFilter(null);
+        break;
       case "Today":
         _min = undefined;
         _on = currentDate.toString();
@@ -175,18 +223,22 @@ export default function MyEvidencePage() {
     });
   }
 
-  // TODO 1. filter by description
-  // 2. filter by account address
+  function handleAccountFilterSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+  }
+
   return (
-    <div className="relative h-full ">
+    <div className="relative h-full">
       {/* Top Menu */}
-      <div className="absolute top-0 right-0 left-0 px-5 pt-5 backdrop-blur-xs bg-orange-50/60 rounded-t-md border-b-2 border-orange-700">
+      <div className="absolute top-0 right-0 left-0 px-5 pt-5 shadow-xl shadow-orange-500/20 backdrop-blur-xs bg-orange-100/60 rounded-t-md">
         {/* Search and sort */}
         <div className="gap-x-2 flex items-center grid grid-cols-[5fr_0.8fr_2fr] ">
+          {/* todo : implement universal search */}
           <div>
             <Input
               className="rounded-r-none"
               placeholder="Search by ID, Account, Description etc"
+              type="search"
             />
           </div>
           {/* hide filter menu button */}
@@ -282,7 +334,7 @@ export default function MyEvidencePage() {
                   max: undefined,
                 });
                 setStatusFilter("Active");
-                setOwnershipFilter("all");
+                setActTypeFilter("acted");
               }}
             >
               <Image src={bin} alt="clear all date filters" />
@@ -293,7 +345,7 @@ export default function MyEvidencePage() {
               <div>
                 <label
                   htmlFor="filter-select"
-                  className="font-mono font-medium text-lg text-orange-700"
+                  className="font-mono font-bold text-lg text-orange-700"
                 >
                   Status:
                 </label>
@@ -333,13 +385,13 @@ export default function MyEvidencePage() {
                   </button>
                   <button
                     onClick={() => {
-                      if (statusFilter !== "Discontinued") {
-                        setStatusFilter("Discontinued");
+                      if (statusFilter !== "Archived") {
+                        setStatusFilter("Archived");
                       }
                     }}
                     type="button"
                     className={`py-2 px-3 ${
-                      statusFilter === "Discontinued"
+                      statusFilter === "Archived"
                         ? "bg-orange-500 font-[600] text-white"
                         : "hover:font-[600] hover:bg-orange-200"
                     }`}
@@ -350,12 +402,12 @@ export default function MyEvidencePage() {
               </div>
               {/* Custom date*/}
               <div>
-                <label className="block font-mono font-medium text-lg text-orange-700">
+                <label className="block font-mono font-bold text-lg text-orange-700">
                   Custom Date Filter:
                 </label>
                 <form
                   onSubmit={(e) => {
-                    setQuickDateFilter(null);
+                    setQuickDateFilter("Custom Date");
                     handleCustomDateSubmit(e);
                   }}
                   className="grid grid-cols-[1fr_2fr_2fr_0.5fr] gap-x-1"
@@ -407,7 +459,7 @@ export default function MyEvidencePage() {
                   <Button
                     type="submit"
                     variant="add"
-                    className="rounded-r-sm text-3xl text-center font-medium font-sans"
+                    className="rounded-r-sm text-3xl text-center font-bold font-sans"
                   >
                     +
                   </Button>
@@ -417,12 +469,12 @@ export default function MyEvidencePage() {
 
             {/* row 2 */}
             <div className="grid grid-cols-[1fr_1fr] gap-x-2">
-              {/* todo add scroll to top on filter change */}
+              {/* placeholders, todo: add ownership combination filters*/}
               {/* ownership */}
               <div>
                 <label
                   htmlFor="filter-select"
-                  className="font-mono font-medium text-lg text-orange-700"
+                  className="font-mono font-bold text-lg text-orange-700"
                 >
                   Ownership:
                 </label>
@@ -432,13 +484,13 @@ export default function MyEvidencePage() {
                 >
                   <button
                     onClick={() => {
-                      if (ownershipFilter !== "all") {
-                        setOwnershipFilter("all");
+                      if (actTypeFilter !== "acted") {
+                        setActTypeFilter("acted");
                       }
                     }}
                     type="button"
                     className={`${
-                      ownershipFilter === "all"
+                      actTypeFilter === "acted"
                         ? "bg-orange-500 font-[600] text-white"
                         : "hover:rounded-b-sm hover:font-[600] hover:bg-orange-200"
                     }`}
@@ -447,13 +499,13 @@ export default function MyEvidencePage() {
                   </button>
                   <button
                     onClick={() => {
-                      if (ownershipFilter !== "created") {
-                        setOwnershipFilter("created");
+                      if (actTypeFilter !== "created") {
+                        setActTypeFilter("created");
                       }
                     }}
                     type="button"
                     className={`border-x-2 ${
-                      ownershipFilter === "created"
+                      actTypeFilter === "created"
                         ? "bg-orange-500 font-[600] text-white"
                         : "hover:font-[600] hover:bg-orange-200"
                     }`}
@@ -462,13 +514,13 @@ export default function MyEvidencePage() {
                   </button>
                   <button
                     onClick={() => {
-                      if (ownershipFilter !== "received") {
-                        setOwnershipFilter("received");
+                      if (actTypeFilter !== "received") {
+                        setActTypeFilter("received");
                       }
                     }}
                     type="button"
                     className={`${
-                      ownershipFilter === "received"
+                      actTypeFilter === "received"
                         ? "bg-orange-500 font-[600] text-white"
                         : "hover:rounded-b-sm hover:font-[600] hover:bg-orange-200"
                     }`}
@@ -477,13 +529,13 @@ export default function MyEvidencePage() {
                   </button>
                   <button
                     onClick={() => {
-                      if (ownershipFilter !== "transferred") {
-                        setOwnershipFilter("transferred");
+                      if (actTypeFilter !== "transferred") {
+                        setActTypeFilter("transferred");
                       }
                     }}
                     type="button"
                     className={`border-l-2 ${
-                      ownershipFilter === "transferred"
+                      actTypeFilter === "transferred"
                         ? "bg-orange-500 font-[600] text-white"
                         : "hover:rounded-b-sm hover:font-[600] hover:bg-orange-200"
                     }`}
@@ -494,31 +546,54 @@ export default function MyEvidencePage() {
               </div>
               {/* filter by account */}
               <div>
-                <label className="block font-mono font-medium text-lg text-orange-700">
-                  Account:
+                <label
+                  ref={accountInputLabelRef}
+                  className="block ml-1 font-mono font-bold text-lg text-orange-700"
+                >
+                  Enter Account Address:
                 </label>
-                <form className="grid grid-cols-[1fr_6fr_1fr] gap-x-1">
+                <form
+                  className="grid grid-cols-[1fr_6fr_1fr] gap-x-1"
+                  onSubmit={handleAccountFilterSubmit}
+                >
+                  {/* todo : maybe remove ownership selector and make this button clickable to switch  */}
                   <button
-                    onClick={() => {}}
+                    // onClick={() => {}}
                     className="p-2 rounded-l-sm text-orange-700 font-mono font-semibold border-2 border-orange-700"
                   >
-                    {ownershipFilter === "received"
+                    {actTypeFilter === "received"
                       ? "FROM"
-                      : ownershipFilter === "transferred"
+                      : actTypeFilter === "transferred"
                         ? "TO"
                         : "BY"}
                   </button>
                   {/* Todo add known account dropdown */}
                   <Input
-                    placeholder="Enter Account Address"
+                    onChange={(e) => {
+                      const res = validAddressCheck(e.target.value);
+                      if (res === "valid") {
+                        if (accountInputLabelRef.current) {
+                          accountInputLabelRef.current.innerText =
+                            "Account Address:";
+                        }
+                        setAccountFilter(e.target.value);
+                      } else {
+                        if (accountInputLabelRef.current) {
+                          accountInputLabelRef.current.innerText = res + ":";
+                        }
+                        setAccountFilter("all");
+                      }
+                    }}
+                    placeholder="0x..."
                     name="account"
                     className="h-[52px] rounded-l-none"
-                    type="search"
+                    type="text"
                   />
                   <Button
+                    disabled={!accountFilter}
                     type="submit"
                     variant="add"
-                    className="rounded-r-sm text-3xl text-center font-medium font-sans"
+                    className="rounded-r-sm text-3xl text-center font-bold font-sans"
                   >
                     +
                   </Button>
@@ -529,15 +604,17 @@ export default function MyEvidencePage() {
         )}
 
         {/* title */}
-        <div className="flex flex-row py-5 items-center font-sans font-[500] text-orange-700 text-3xl">
+        <div className="flex flex-row pt-3 items-center font-sans font-[500] text-orange-700 text-3xl">
           {/* status */}
-          <div className="min-w-50 group relative flex items-center justify-between border-2 rounded-sm px-2 bg-orange-100">
-            <span className="peer text-center w-full">{statusFilter}</span>
+          <div className="min-w-50 group relative flex items-center justify-between border-2 border-orange-700 rounded-sm px-2 bg-orange-100">
+            <span className="peer font-sans font-[500] text-3xl text-orange-700 text-center w-full">
+              {statusFilter}
+            </span>
             <div
-              className={`peer z-101 top-9 right-0 left-0 min-w-50 absolute hidden group-hover:flex flex-col 
-              bg-orange-50 backdrop-blur-xs rounded-b-sm rounded-t-sm border-2 border-orange-700 
-              text-base font-[500] text-orange-700 
-              *:py-2 *:nth-[2]:border-y-2 *:nth-[2]:border-orange-700 `}
+              className={`peer z-101 top-9 right-0 left-0 absolute hidden group-hover:flex flex-col 
+              bg-orange-50 backdrop-blur-xs rounded-b-sm rounded-t-sm border-orange-700 
+              font-mono text-base font-[500] text-orange-700 
+              *:py-2 *:border-b-2 *:border-x-2 *:border-orange-700`}
             >
               {statusFilterKey.map((s) => (
                 <Button
@@ -548,11 +625,12 @@ export default function MyEvidencePage() {
                       behavior: "smooth",
                     });
                   }}
-                  className={
-                    s === statusFilter
-                      ? "bg-orange-500 font-[600] text-white"
-                      : "hover:bg-orange-200 hover:font-[600]"
-                  }
+                  className={`first:border-t-2
+                    ${
+                      s === statusFilter
+                        ? " bg-orange-500 font-[600] text-white"
+                        : "hover:bg-orange-200 hover:font-[600]"
+                    }`}
                   key={s}
                 >
                   {s.toUpperCase()}
@@ -563,35 +641,35 @@ export default function MyEvidencePage() {
               ⯆
             </span>
           </div>
-          <span className="mx-2">Evidences,</span>
-          {/* ownership */}
+          <span className="mx-2 text-4xl">Evidences,</span>
+          {/* activity type */}
           <div className="border-2 min-w-50 group relative flex items-center justify-between rounded-sm px-2 bg-orange-100">
-            <span className="peer text-center w-full">{ownershipFilter}</span>
+            <span className="peer text-center w-full">{actTypeFilter}</span>
             <div
-              className={`peer z-101 top-9 right-0 left-0 min-w-50 absolute hidden group-hover:flex flex-col 
-              bg-orange-50 backdrop-blur-xs rounded-b-sm rounded-t-sm border-2 *:border-orange-700 
+              className={`peer z-101 top-9 right-0 left-0 absolute hidden group-hover:flex flex-col 
+              bg-orange-50 backdrop-blur-xs rounded-b-sm rounded-t-sm
               text-base font-[500] text-orange-700 
-              *:py-2 *:border-t-2 *:first:border-none`}
+              *:py-2 *:border-b-2 *:border-x-2 *:border-orange-700`}
             >
-              {ownershipFilterKey.map((o) => (
+              {actTypeFilterKey.map((a) => (
                 <Button
                   onClick={() => {
-                    setOwnershipFilter(o as ownershipFilterType);
+                    setActTypeFilter(a as actTypeFilterType);
                     scrollContainerRef.current?.scrollTo({
                       top: 0,
                       behavior: "smooth",
                     });
                   }}
-                  className={`
+                  className={`first:border-t-2
                       ${
-                        o === ownershipFilter
+                        a === actTypeFilter
                           ? "bg-orange-500 font-[600] text-white"
                           : "hover:bg-orange-200 hover:font-[600]"
                       }
                     `}
-                  key={o}
+                  key={a}
                 >
-                  {o.toUpperCase()}
+                  {a.toUpperCase()}
                 </Button>
               ))}
             </div>
@@ -599,47 +677,107 @@ export default function MyEvidencePage() {
               ⯆
             </span>
           </div>
-          <span className="mx-2 ">by You @</span>
+          {/* todo: implement account filter dropdown here */}
+          <span className="ml-2">by You</span>
+          {/* account filter*/}
+          {actTypeFilter === "received" ? (
+            <span className="ml-2">from</span>
+          ) : (
+            actTypeFilter === "transferred" && <span className="ml-2">to</span>
+          )}
+          {/* dropdown */}
+          {(actTypeFilter === "received" ||
+            actTypeFilter === "transferred") && (
+            <div className="ml-2 border-2 min-w-110 group relative flex items-center justify-between rounded-sm px-2 bg-orange-100">
+              <span className="peer text-center w-full">
+                {!accountFilter || accountFilter === account
+                  ? "all addresses"
+                  : accountFilter.slice(0, 9) +
+                    "..." +
+                    accountFilter.slice(25, 32)}
+              </span>
+              <div
+                className={`peer z-101 top-9 right-0 left-0 absolute hidden group-hover:flex flex-col 
+              bg-orange-50 backdrop-blur-xs rounded-b-sm rounded-t-sm
+              text-base font-[500] text-orange-700 
+              *:py-2 *:border-b-2 *:border-x-2 *:border-orange-700`}
+              >
+                {uniqueAddresses.map((a) => (
+                  <Button
+                    onClick={() => {
+                      setAccountFilter(a);
+                      scrollContainerRef.current?.scrollTo({
+                        top: 0,
+                        behavior: "smooth",
+                      });
+                    }}
+                    className={`first:border-t-2 
+                      ${
+                        a === accountFilter
+                          ? "bg-orange-500 font-[600] text-white"
+                          : "hover:bg-orange-200 hover:font-[600]"
+                      }
+                    `}
+                    key={a}
+                  >
+                    {a === account ? "ALL ADDRESSES" : a}
+                  </Button>
+                ))}
+              </div>
+
+              <span className="peer-hover:bg-orange-500 peer-hover:text-white ml-2 px-4 text-base rounded-full border-2 border-orange-700 text-orange-700 bg-orange-50">
+                ⯆
+              </span>
+            </div>
+          )}
+          <span className="ml-2">,</span>
+        </div>
+        {/* title row 2 */}
+
+        <div className="flex flex-row pt-1 pb-3">
+          <span className="mx-2 text-4xl font-sans font-[500] text-orange-700">
+            At
+          </span>
           {/* quick date filter dropdown */}
           <div
-            className={`group relative flex items-center justify-between p-1 pl-3 text-lg border-2 border-orange-700 rounded-sm 
-              ${hasDates ? "bg-orange-500  text-white" : "bg-orange-100 text-orange-700"}`}
+            className={`group relative flex items-center justify-between min-w-40 px-2 border-2 border-orange-700 rounded-sm 
+              ${hasDates ? "bg-orange-500 text-white" : "bg-orange-100 text-orange-700"}`}
           >
-            <div className={`peer font-[600]`}>
+            <div className={`peer text-lg font-sans font-[600]`}>
               {hasDates ? (
                 dateFilters.on ? (
                   <div>{dateFilters.on}</div>
                 ) : dateFilters.max && dateFilters.min ? (
-                  <div className="grid grid-cols-[2fr_0.5fr_2fr]">
+                  <div className="grid grid-cols-[1fr_0.5fr_1fr]">
                     <span>{dateFilters.min}</span>
-                    <span className="mr-1 px-1 text-center bg-orange-100 text-orange-700 rounded-full">
+                    <span className="mx-1 px-4 text-orange-700 text-base text-center bg-orange-100 rounded-full border-2">
                       to
                     </span>
                     <span>{dateFilters.max}</span>
                   </div>
                 ) : dateFilters.min ? (
                   <div className="grid grid-cols-2">
-                    <span className="mr-2 text-center bg-orange-100 text-orange-700 rounded-full">
+                    <span className="mr-2 text-center text-orange-700 bg-orange-100 rounded-full">
                       after
                     </span>
                     <span>{dateFilters.min}</span>
                   </div>
                 ) : (
                   <div className="grid grid-cols-2">
-                    <span className="mr-2 text-center bg-orange-100 text-orange-700 rounded-full">
+                    <span className="mr-2 text-center text-orange-700 bg-orange-100 rounded-full">
                       before
                     </span>
                     <span>{dateFilters.max}</span>
                   </div>
                 )
               ) : (
-                "Filter By Date"
+                <span className="font-sans font-[600] text-xl">Any date</span>
               )}
             </div>
             <div
-              className={`peer z-101 top-9 right-0 left-0 absolute hidden group-hover:flex flex-col min-w-40 
+              className={`peer z-101 top-9 right-0 left-0 absolute hidden group-hover:flex flex-col
                                   rounded-b-sm rounded-t-sm 
-                                  text-orange-700 font-[500] 
+                                  text-lg text-orange-700 font-[500] 
                                   *:py-1 *:border-orange-700 *:border-b-2 *:border-x-2`}
             >
               {quickDateFilters.map((q) => (
@@ -648,9 +786,9 @@ export default function MyEvidencePage() {
                     setQuickDateFilter(q);
                     handleQuickDateFilterSubmit(q);
                   }}
-                  className={`bg-orange-50 first:border-t-2
+                  className={`bg-orange-50 first:border-t-2 font-mono
                     ${
-                      q === quickDateFilter
+                      q === quickDateFilter && hasDates
                         ? "bg-orange-500 font-[600] text-white"
                         : "hover:bg-orange-200 hover:font-[600]"
                     }
@@ -662,11 +800,12 @@ export default function MyEvidencePage() {
               ))}
             </div>
             <span
-              className={`${!hasDates && "group-hover:bg-orange-500 group-hover:text-white peer-hover:bg-orange-500 peer-hover:text-white"} bg-orange-50 mx-2 px-3 text-sm rounded-full border-2 border-orange-700 text-orange-700`}
+              className={`${!hasDates && "group-hover:bg-orange-500 group-hover:text-white peer-hover:bg-orange-500 peer-hover:text-white"} bg-orange-50 px-3 ml-2 text-sm rounded-full border-2 border-orange-700 text-orange-700`}
             >
               ⯆
             </span>
           </div>
+          {/* remove date button */}
           {hasDates && (
             <Button
               onClick={() => {
@@ -682,13 +821,15 @@ export default function MyEvidencePage() {
               X
             </Button>
           )}
-          <span className="ml-2">:</span>
+          <span className="ml-2 text-3xl font-sans font-[600] text-orange-700">
+            :
+          </span>
         </div>
       </div>
       {/* Evidence list */}
       <div
         ref={scrollContainerRef}
-        className={`scroll-smooth overflow-y-scroll h-full ml-5 pr-5 ${isTopHidden ? "pt-38" : "pt-88"}`}
+        className={`scroll-smooth overflow-y-scroll h-full ml-5 pr-5 ${isTopHidden ? "pt-46" : "pt-96"}`}
       >
         {isLoadingEvidences ? (
           <p className="p-4 animate-pulse text-center text-sm text-gray-500">

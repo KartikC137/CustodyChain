@@ -5,7 +5,7 @@
 // 4. Management area - 2 children : forms
 export default function EvidenceContentSkeleton() {
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 px-8 pt-8">
       {/* Evidence Details */}
       <div className="space-y-5">
         <p className="font-sans font-[500] text-4xl text-orange-700">

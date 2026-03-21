@@ -1,10 +1,12 @@
 "use client";
 
 import type React from "react";
+import { RefObject } from "react";
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string | null;
   labelStyle?: string | null;
+  ref?: RefObject<HTMLInputElement | null>;
 }
 
 export default function Input({
@@ -12,6 +14,7 @@ export default function Input({
   labelStyle,
   id,
   className,
+  ref,
   ...props
 }: InputProps) {
   const baseStyles =
@@ -28,7 +31,7 @@ export default function Input({
           {label}
         </label>
       )}
-      <input id={id} className={combinedClassName} {...props} />
+      <input id={id} className={combinedClassName} ref={ref} {...props} />
       {/* <div
         className="absolute top-3 right-3 text-center h-[25px] w-[25px] rounded-full border-2 border-orange-700 text-orange-700
       hover:bg-orange-200 active:bg-orange-500 active:text-white

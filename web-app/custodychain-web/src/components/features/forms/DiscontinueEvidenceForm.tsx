@@ -20,7 +20,6 @@ interface DiscontinueEvidenceProps {
   evidenceId: Bytes32;
   status: "active" | "discontinued";
   creator: Address;
-  onDiscontinueFormSuccess: (success: boolean) => void;
 }
 // todo : change UI
 export default function DiscontinueEvidence({
@@ -28,7 +27,6 @@ export default function DiscontinueEvidence({
   evidenceId,
   status,
   creator,
-  onDiscontinueFormSuccess,
 }: DiscontinueEvidenceProps) {
   const { account, chain, publicClient, walletClient } = useWeb3();
   const { addPendingActivity } = useActivities();
@@ -40,19 +38,16 @@ export default function DiscontinueEvidence({
 
     if (!publicClient || !walletClient || !account || !chain) {
       setError("Wallet has been disconnected");
-      onDiscontinueFormSuccess(false);
       return;
     }
 
     if (status === "discontinued") {
       setError("This evidence is already discontinued!");
-      onDiscontinueFormSuccess(false);
       return;
     }
 
     if (!creator || account.toLowerCase() !== creator.toLowerCase()) {
       setError("Invalid creator address");
-      onDiscontinueFormSuccess(false);
       return;
     }
 
@@ -91,8 +86,6 @@ export default function DiscontinueEvidence({
         txHash: txHash,
         initializedAt: initializedAt,
       });
-
-      onDiscontinueFormSuccess(true);
     } catch (err) {
       //todo: expect more errors
       if (err instanceof BaseError) {
@@ -120,7 +113,6 @@ export default function DiscontinueEvidence({
       } else {
         setError("An unexpected error occured");
       }
-      onDiscontinueFormSuccess(false);
     } finally {
       setIsLoading(false);
     }

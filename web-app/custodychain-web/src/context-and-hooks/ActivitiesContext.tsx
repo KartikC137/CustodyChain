@@ -11,12 +11,8 @@ import {
 import { ActivityInfoForPanel } from "../lib/types/activity.types";
 import { useWeb3 } from "./Web3Context";
 import { useEvidences } from "./EvidencesContext";
-import { fetchActivitiesForPanel } from "../api/activities/fetchActivities";
-import {
-  SocketUpdateSchema,
-  SocketUpdateType,
-} from "../lib/types/socketEvent.types";
-import { bigintToDateWithTimeStamp } from "../lib/util/helpers";
+import { fetchActivities } from "../api/activities/fetchActivities";
+import { SocketUpdateSchema } from "../lib/types/socketEvent.types";
 
 interface ActivityContextType {
   activities: ActivityInfoForPanel[];
@@ -30,7 +26,7 @@ interface ActivityContextType {
  * @dev 1. Socket events cannot serialize bigint values, they emit string values, so convert string to bigint always
  *      2.when an activity of type transfer and client_only and where actor not equal to account is received (i.e evidence was transferred from someone else)
  *      it has to be inserted as new, as it was never inserted by any transfer form.
- * @todo fix evidences and activities context
+ * @todo fix evidences and activities context - needs update on received evidences and better socket updates
  *
  */
 const ActivityContext = createContext<ActivityContextType | null>(null);
@@ -48,7 +44,7 @@ export function ActivityProvider({ children }: { children: ReactNode }) {
       if (!account) {
         return;
       }
-      const data = await fetchActivitiesForPanel(account);
+      const data = await fetchActivities(account, false);
       setActivities(data);
     } catch (err) {
       console.error("Failed to fetch activities", err);
@@ -68,7 +64,7 @@ export function ActivityProvider({ children }: { children: ReactNode }) {
     const handleUpdate = (rawUpdate: any) => {
       const result = SocketUpdateSchema.safeParse(rawUpdate);
       if (!result.success) {
-        console.info("parse error", result.error);
+        console.error("parse error", result.error);
         return;
       } // maybe throw here
       const update = result.data;
@@ -83,7 +79,7 @@ export function ActivityProvider({ children }: { children: ReactNode }) {
             act.txHash.toLowerCase() === update.txHash,
         );
         if (targetIndex === -1) {
-          console.info("activity not found");
+          console.info("activity not in context");
           return prev;
         }
         const newActivities = [...prev];
@@ -95,21 +91,20 @@ export function ActivityProvider({ children }: { children: ReactNode }) {
           updatedAt: update.updatedAt,
           error: update.status === "failed" ? update.error : undefined,
         };
-        console.info("activity Updated to client_only");
-
         return newActivities;
       });
 
+      //ignoring fetch activities
       if (update.status === "client_only") {
         if (update.type === "create") {
           insertEvidence(update.evidence);
         } else if (update.type === "transfer") {
-          // evidence was received, sender = update.actor, to (this account) = update.currentOwner, creator = update.creator
+          // check if evidence was received (transferred from)
           if (update.actor !== account) {
             setActivities((prev) => [
               {
                 id: update.activityId,
-                type: "transfer",
+                type: "receive",
                 status: "client_only",
                 txHash: update.txHash,
                 updatedAt: update.updatedAt,
@@ -122,11 +117,11 @@ export function ActivityProvider({ children }: { children: ReactNode }) {
             // ensures if evidence was recieved back its not re-inserted
             if (update.evidence.creator !== account) {
               insertEvidence(update.evidence);
+            } else {
+              updateEvidence(update.evidence, "transfer");
             }
-          }
-          // evidence was transferred, sender = update.actor (this account) , to = update.currentOwner
-          // this check ensures that evidence is not updated if its being removed
-          if (update.evidence.creator === account) {
+          } else {
+            // evidence was transferred, by (this account) update.actor , to = update.currentOwner
             updateEvidence(update.evidence, "transfer");
           }
         } else if (update.type === "discontinue") {

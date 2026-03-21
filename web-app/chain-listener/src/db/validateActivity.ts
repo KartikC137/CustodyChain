@@ -40,7 +40,7 @@ export async function validateActivity(
   blockNumber: bigint | null,
 ): Promise<void> {
   const io = getIO();
-  const recipients = new Set<string>();
+  let recipients: Address[];
   //@todo use zod to parse inputs here
   actor = actor.toLowerCase() as Address;
   try {
@@ -76,7 +76,6 @@ export async function validateActivity(
     }
 
     let evidence: SocketEvidenceDetails;
-    recipients.add(actor);
     if (type === "create") {
       const eventLogs = parseEventLogs({
         abi: event_EvidenceCreated,
@@ -93,7 +92,7 @@ export async function validateActivity(
         args.contractAddress,
         args.evidenceId,
         creator,
-        args.timeOfCreation, //testing value
+        args.timeOfCreation,
         blockNumberFromReceipt,
         txHash,
         args.desc,
@@ -107,6 +106,7 @@ export async function validateActivity(
         createdAt: time,
         transferredAt: time,
       };
+      recipients = [creator];
     } else if (type === "transfer") {
       const eventLogs = parseEventLogs({
         abi: event_OwnershipTransferred,
@@ -132,7 +132,7 @@ export async function validateActivity(
         createdAt: result.createdAt.toString(),
         transferredAt: args.timeOfTransfer.toString(),
       };
-      recipients.add(newOwner);
+      recipients = result.uniqueOwners;
     } else if (type === "discontinue") {
       const eventLogs = parseEventLogs({
         abi: event_EvidenceDiscontinued,
@@ -158,10 +158,14 @@ export async function validateActivity(
         transferredAt: result.transferredAt.toString(),
         discontinuedAt: args.timeOfDiscontinuation.toString(),
       };
-      recipients.add(currentOwner);
+      recipients = result.uniqueOwners;
     } else {
       throw new Error(`invalid activity: ${type}`);
     }
+
+    console.info(`the recipients be like`, recipients);
+
+    // Activity Success
     const updatedAt = await updateActivityForClient(
       activityId,
       "client_only",
@@ -170,7 +174,7 @@ export async function validateActivity(
     );
 
     // Socket emit to recipients
-    io.to(Array.from(recipients)).emit("activity_update", {
+    io.to(recipients).emit("activity_update", {
       activityId: activityId.toString(),
       actor: actor,
       type: type,

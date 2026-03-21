@@ -12,6 +12,11 @@ export const ActivityTypeSchema = z.enum([
   "discontinue",
   "fetch",
 ]);
+
+export const ActivityTypeForPanelSchema = z.enum([
+  ...ActivityTypeSchema.options,
+  "receive",
+]);
 export const ActivityStatusSchema = z.enum([
   "on_chain",
   "db_only",
@@ -31,14 +36,15 @@ export const ActivityInputSchema = z.object({
   initializedAt: z.date(),
 });
 
-export type ActivityTypeType = z.infer<typeof ActivityTypeSchema>;
+export type ActivityType = z.infer<typeof ActivityTypeSchema>;
+export type ActivityTypeForPanel = z.infer<typeof ActivityTypeForPanelSchema>;
 export type ActivityStatus = z.infer<typeof ActivityStatusSchema>;
-export type ActivityInputType = z.infer<typeof ActivityInputSchema>;
+export type ActivityInput = z.infer<typeof ActivityInputSchema>;
 
 // Context types
 export interface ActivityInfoForPanel {
   id: string;
-  type: ActivityTypeType;
+  type: ActivityTypeForPanel;
   status: ActivityStatus;
   txHash: Bytes32 | null;
   updatedAt: Date;

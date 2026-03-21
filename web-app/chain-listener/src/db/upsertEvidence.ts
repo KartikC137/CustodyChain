@@ -1,7 +1,7 @@
 import { Address, Bytes32 } from "../lib/types/solidity.types.js";
 import { query } from "../config/db.js";
 import { CustodyRecord } from "../lib/types/evidence.types.js";
-import { parseChainOfCustody } from "./evidenceHelpers.js";
+import { parseUniqueOwners } from "./evidenceHelpers.js";
 
 /**
  * @param timeOfCreation is bigint to keep custody record consistency and precision.
@@ -66,6 +66,7 @@ export async function updateTransferOwnership(
   createdAt: bigint;
   creator: Address;
   desc: string;
+  uniqueOwners: Address[];
 }> {
   try {
     const result = await query(
@@ -77,7 +78,7 @@ export async function updateTransferOwnership(
         transferred_at = $4,
         chain_of_custody = array_append(chain_of_custody, ($1, $4)::custody_record_t)
     WHERE id = $5
-    RETURNING created_at AS "createdAt", creator, description AS "desc"
+    RETURNING created_at AS "createdAt", creator, description AS "desc", chain_of_custody
     `,
       [
         currentOwner, // already lowercased in parent
@@ -88,7 +89,10 @@ export async function updateTransferOwnership(
       ],
     );
 
-    return result.rows[0];
+    return {
+      ...result.rows[0],
+      uniqueOwners: parseUniqueOwners(result.rows[0].chain_of_custody),
+    };
   } catch (err) {
     throw new Error("update evidence failed: db error");
   }
@@ -104,6 +108,7 @@ export async function updateEvidenceDiscontinued(
   transferredAt: bigint;
   creator: Address;
   desc: string;
+  uniqueOwners: Address[];
 }> {
   try {
     const result = await query(
@@ -114,7 +119,7 @@ export async function updateEvidenceDiscontinued(
         last_tx_block = $2,
         discontinued_at = $3
     WHERE id = $4
-    RETURNING created_at AS "createdAt", transferred_at AS "transferredAt", creator, description AS "desc"
+    RETURNING created_at AS "createdAt", transferred_at AS "transferredAt", creator, description AS "desc", chain_of_custody
     `,
       [
         latestTxHash.toLowerCase(),
@@ -123,8 +128,10 @@ export async function updateEvidenceDiscontinued(
         evidenceId.toLowerCase(),
       ],
     );
-
-    return result.rows[0];
+    return {
+      ...result.rows[0],
+      uniqueOwners: parseUniqueOwners(result.rows[0].chain_of_custody),
+    };
   } catch (err) {
     console.error(err);
     throw new Error("update evidence failed: db error");

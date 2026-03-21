@@ -35,10 +35,6 @@ export default function EvidenceDetails({
     );
   }
 
-  function handleUpdateSuccess(success: boolean) {
-    if (success) fetchEvidenceData(evidenceId);
-  }
-
   return (
     <div className="space-y-4 px-8 pt-8">
       <EvidenceSummary
@@ -74,7 +70,6 @@ export default function EvidenceDetails({
             status={evidenceDetails.status}
             creator={evidenceDetails.creator}
             currentOwner={evidenceDetails.currentOwner}
-            onManagementSuccess={handleUpdateSuccess}
           />
         )}
       </div>

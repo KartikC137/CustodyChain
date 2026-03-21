@@ -6,30 +6,31 @@ import {
   useState,
   useEffect,
   ReactNode,
+  useMemo,
 } from "react";
 import { fetchEvidencesByAccount } from "../api/evidences/fetchEvidence";
 import { useWeb3 } from "./Web3Context";
-import { Bytes32, Address } from "../lib/types/solidity.types";
-import { ActivityTypeType } from "../lib/types/activity.types";
+import { ActivityType } from "../lib/types/activity.types";
 import { SocketEvidenceDetails } from "../lib/types/socketEvent.types";
+import { ContextEvidenceDetails } from "../lib/types/evidence.types";
+import { parseChainOfCustody } from "../lib/util/helpers";
+import { Address } from "../lib/types/solidity.types";
 
 type EvidenceContextType = {
-  evidences: SocketEvidenceDetails[];
+  evidences: ContextEvidenceDetails[];
   isLoadingEvidences: boolean;
+  uniqueAddresses: Address[];
   refreshEvidences: () => void;
   insertEvidence: (evidence: SocketEvidenceDetails) => void;
-  updateEvidence: (
-    evidence: SocketEvidenceDetails,
-    type: ActivityTypeType,
-  ) => void;
-  removeEvidence: (evidenceId: Bytes32) => void;
+  updateEvidence: (evidence: SocketEvidenceDetails, type: ActivityType) => void;
+  // removeEvidence: (evidenceId: Bytes32) => void;
 };
 
 const EvidenceContext = createContext<EvidenceContextType | null>(null);
 
 export function EvidenceProvider({ children }: { children: ReactNode }) {
   const { account } = useWeb3();
-  const [evidences, setEvidences] = useState<SocketEvidenceDetails[]>([]);
+  const [evidences, setEvidences] = useState<ContextEvidenceDetails[]>([]);
   const [isLoadingEvidences, setIsLoadingEvidences] = useState(false);
 
   const loadData = async () => {
@@ -49,13 +50,29 @@ export function EvidenceProvider({ children }: { children: ReactNode }) {
     loadData();
   }, [account]);
 
+  const uniqueAddresses = useMemo(() => {
+    if (!evidences || evidences.length === 0) return [];
+    const allAddresses = evidences.flatMap((evidence) =>
+      parseChainOfCustody(evidence.chainOfCustody).map(
+        (record) => record.owner,
+      ),
+    );
+    return Array.from(new Set(allAddresses));
+  }, [evidences, account]);
+
   const insertEvidence = async (evidence: SocketEvidenceDetails) => {
-    setEvidences((prev) => [evidence, ...prev]);
+    setEvidences((prev) => [
+      {
+        ...evidence,
+        chainOfCustody: `{"(${evidence.creator},${evidence.createdAt})"}`,
+      },
+      ...prev,
+    ]);
   };
 
   const updateEvidence = async (
     evidence: SocketEvidenceDetails,
-    type: ActivityTypeType,
+    type: ActivityType,
   ) => {
     if (type === "transfer") {
       setEvidences((prev) => {
@@ -87,23 +104,24 @@ export function EvidenceProvider({ children }: { children: ReactNode }) {
   };
 
   // only removes evidence if account is not the creator as well
-  const removeEvidence = async (evidenceId: Bytes32) => {
-    setEvidences((prev) => {
-      const index = prev.findIndex((e) => e.id === evidenceId);
-      if (index === -1) return prev;
-      return [...prev.slice(0, index), ...prev.slice(index + 1)];
-    });
-  };
+  // const removeEvidence = async (evidenceId: Bytes32) => {
+  //   setEvidences((prev) => {
+  //     const index = prev.findIndex((e) => e.id === evidenceId);
+  //     if (index === -1) return prev;
+  //     return [...prev.slice(0, index), ...prev.slice(index + 1)];
+  //   });
+  // };
 
   return (
     <EvidenceContext.Provider
       value={{
         evidences,
         isLoadingEvidences,
+        uniqueAddresses,
         refreshEvidences: loadData,
         insertEvidence,
         updateEvidence,
-        removeEvidence,
+        // removeEvidence,
       }}
     >
       {children}

@@ -86,7 +86,7 @@ export default function FetchEvidenceForm() {
 
   return (
     <div
-      className={`p-10 w-full rounded-md border-2  ${error ? "border-red-600 bg-red-50" : "bg-green-50 border-green-700"}`}
+      className={`p-10 mx-5 mt-5 rounded-md border-2  ${error ? "border-red-600 bg-red-50" : "bg-green-50 border-green-700"}`}
     >
       <p className="font-sans font-[400] text-5xl text-orange-700">
         Fetch Evidence

@@ -9,7 +9,6 @@ interface EvidenceManagerProps {
   creator: Address;
   currentOwner: Address;
   status: "active" | "discontinued";
-  onManagementSuccess: (success: boolean) => void;
 }
 
 export default function EvidenceManager({
@@ -19,11 +18,7 @@ export default function EvidenceManager({
   creator,
   currentOwner,
   status,
-  onManagementSuccess,
 }: EvidenceManagerProps) {
-  function handleFormSuccess(success: boolean) {
-    onManagementSuccess(success);
-  }
   return (
     <div className="space-y-4">
       {(currentAccount.toLowerCase() === currentOwner.toLowerCase() ||
@@ -40,7 +35,6 @@ export default function EvidenceManager({
           status={status}
           currentOwner={currentOwner as Address}
           evidenceId={id as `0x${string}`}
-          onTransferFormSuccess={handleFormSuccess}
         />
       )}
 
@@ -50,7 +44,6 @@ export default function EvidenceManager({
           evidenceId={id as `0x${string}`}
           status={status}
           creator={creator as Address}
-          onDiscontinueFormSuccess={handleFormSuccess}
         />
       )}
     </div>

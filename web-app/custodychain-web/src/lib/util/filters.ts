@@ -4,9 +4,8 @@ export interface dateFilters {
   max: string | undefined;
 }
 
-export const statusFilterKey = ["All", "Active", "Discontinued"] as const;
-export const ownershipFilterKey = [
-  "all",
+export const statusFilterKey = ["All", "Active", "Archived"] as const;
+export const baseActTypeFilterKey = [
   "created",
   "received",
   "transferred",
@@ -19,9 +18,10 @@ export const quickDateFilters = [
   "Last 3 months",
   "Last 6 months",
   "2026",
+  "Custom Date",
 ] as const;
 
 export type statusFilterType = (typeof statusFilterKey)[number];
-export type ownershipFilterType = (typeof ownershipFilterKey)[number];
+export type baseActTypeFilterType = (typeof baseActTypeFilterKey)[number];
 export type customDateFilterType = (typeof customDateFilterKey)[number];
 export type quickDateFiltersKey = (typeof quickDateFilters)[number];

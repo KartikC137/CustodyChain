@@ -54,7 +54,7 @@ export default function RootLayout({
 
               <div
                 id="evidence-container"
-                className="relative h-full overflow-hidden  rounded-md bg-orange-50 border-2 border-orange-700"
+                className="relative h-full overflow-hidden rounded-md bg-orange-50 border-2 border-orange-700"
               >
                 {children}
               </div>
