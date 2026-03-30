@@ -44,7 +44,7 @@ export function ActivityProvider({ children }: { children: ReactNode }) {
       if (!account) {
         return;
       }
-      const data = await fetchActivities(account, false);
+      const data = await fetchActivities(account);
       setActivities(data);
     } catch (err) {
       console.error("Failed to fetch activities", err);
@@ -79,7 +79,6 @@ export function ActivityProvider({ children }: { children: ReactNode }) {
             act.txHash.toLowerCase() === update.txHash,
         );
         if (targetIndex === -1) {
-          console.info("activity not in context");
           return prev;
         }
         const newActivities = [...prev];
@@ -104,7 +103,7 @@ export function ActivityProvider({ children }: { children: ReactNode }) {
             setActivities((prev) => [
               {
                 id: update.activityId,
-                type: "receive",
+                type: "transfer",
                 status: "client_only",
                 txHash: update.txHash,
                 updatedAt: update.updatedAt,

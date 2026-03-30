@@ -5,7 +5,7 @@ import Button from "@/src/components/ui/Button";
 import expandUp from "../../../public/icons/expand-up.svg";
 import expandDown from "../../../public/icons/expand-down.svg";
 import none from "../../../public/icons/none.svg";
-import bin from "../../../public/icons/bin.svg";
+import reset from "../../../public/icons/reset.svg";
 import Image from "next/image";
 import { useState, useRef } from "react";
 import { useWeb3 } from "@/src/context-and-hooks/Web3Context";
@@ -39,7 +39,7 @@ const actTypeFilterKey = ["acted", ...baseActTypeFilterKey];
 export default function MyEvidencePage() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const accountInputLabelRef = useRef<HTMLLabelElement>(null);
-  const [isTopHidden, setIsTopHidden] = useState<boolean>(false);
+  const [isTopHidden, setIsTopHidden] = useState<boolean>(true);
 
   //Filters
   const [accountFilter, setAccountFilter] = useState<Address | null>(null);
@@ -227,8 +227,9 @@ export default function MyEvidencePage() {
     e.preventDefault();
   }
 
+  //todo pending advanced account filter and search
   return (
-    <div className="relative h-full">
+    <div className="relative h-full bg-orange-50">
       {/* Top Menu */}
       <div className="absolute top-0 right-0 left-0 px-5 pt-5 shadow-xl shadow-orange-500/20 backdrop-blur-xs bg-orange-100/60 rounded-t-md">
         {/* Search and sort */}
@@ -323,23 +324,6 @@ export default function MyEvidencePage() {
         {/* Filter Menu */}
         {!isTopHidden && (
           <div className="relative grid grid-rows-[1fr_1fr] mt-2 gap-x-3 p-4 bg-orange-100 rounded-sm border-2 border-orange-700">
-            {/* clear all filters */}
-            <Button
-              className="absolute top-1 right-1 rounded-sm"
-              variant="delete"
-              onClick={() => {
-                setDateFilters({
-                  min: undefined,
-                  on: undefined,
-                  max: undefined,
-                });
-                setStatusFilter("Active");
-                setActTypeFilter("acted");
-              }}
-            >
-              <Image src={bin} alt="clear all date filters" />
-            </Button>
-
             {/* row 1 */}
             <div className="grid grid-cols-[2fr_3fr] gap-x-2">
               <div>
@@ -604,7 +588,23 @@ export default function MyEvidencePage() {
         )}
 
         {/* title */}
-        <div className="flex flex-row pt-3 items-center font-sans font-[500] text-orange-700 text-3xl">
+        <div className="relative flex flex-row pt-3 items-center font-sans font-[500] text-orange-700 text-3xl">
+          <Button
+            className="absolute top-13 right-0 rounded-sm"
+            variant="delete"
+            onClick={() => {
+              setDateFilters({
+                min: undefined,
+                on: undefined,
+                max: undefined,
+              });
+              setStatusFilter("Active");
+              setActTypeFilter("acted");
+              setAccountFilter(null);
+            }}
+          >
+            <Image src={reset} alt="clear all date filters" />
+          </Button>
           {/* status */}
           <div className="min-w-50 group relative flex items-center justify-between border-2 border-orange-700 rounded-sm px-2 bg-orange-100">
             <span className="peer font-sans font-[500] text-3xl text-orange-700 text-center w-full">

@@ -6,17 +6,8 @@ import {
   Bytes32,
 } from "./solidity.types";
 
-export const ActivityTypeSchema = z.enum([
-  "create",
-  "transfer",
-  "discontinue",
-  "fetch",
-]);
+export const ActivityTypeSchema = z.enum(["create", "transfer", "discontinue"]);
 
-export const ActivityTypeForPanelSchema = z.enum([
-  ...ActivityTypeSchema.options,
-  "receive",
-]);
 export const ActivityStatusSchema = z.enum([
   "on_chain",
   "db_only",
@@ -37,7 +28,7 @@ export const ActivityInputSchema = z.object({
 });
 
 export type ActivityType = z.infer<typeof ActivityTypeSchema>;
-export type ActivityTypeForPanel = z.infer<typeof ActivityTypeForPanelSchema>;
+export type ActivityTypeForPanel = z.infer<typeof ActivityTypeSchema>;
 export type ActivityStatus = z.infer<typeof ActivityStatusSchema>;
 export type ActivityInput = z.infer<typeof ActivityInputSchema>;
 

@@ -1,11 +1,6 @@
 import { z } from "zod";
 
-export const ActivityTypeSchema = z.enum([
-  "create",
-  "transfer",
-  "discontinue",
-  "fetch",
-]);
+export const ActivityTypeSchema = z.enum(["create", "transfer", "discontinue"]);
 export const ActivityStatusSchema = z.enum([
   "on_chain",
   "db_only",

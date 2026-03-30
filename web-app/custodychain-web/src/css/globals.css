@@ -24,6 +24,12 @@ html::-webkit-scrollbar-thumb {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-monsteratt);
+
+  --color-green-50: #e5fef6;
+  --color-green-100: #ddfdf2;
+  --color-green-500: #10b981;
+  --color-green-700: #0c8d62;
+  --color-green-800: #085e41;
 }
 
 /* @media (prefers-color-scheme: dark) {

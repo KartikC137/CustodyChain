@@ -38,7 +38,7 @@ const activityPgClient = new Client({
 });
 
 async function main() {
-  logger.info("Booting chain-listener backend...");
+  logger.info("Booting chain-listener ...");
   logger.info(`Using network: ${config.CURRENT_CHAIN.name}`);
   logger.info(`RPC URL: ${config.RPC_URL}`);
   logger.info(`Ledger address: ${config.LEDGER_CONTRACT_ADDRESS}`);

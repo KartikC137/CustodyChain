@@ -8,8 +8,8 @@ export default function Navbar() {
 
   const baseLinkStyle = "flex items-center pl-2 rounded-sm";
   const hoverLinkStyle =
-    "hover:font-[600] hover:bg-orange-200 hover:text-orange-900";
-  const activeLinkStyle = "font-[600] bg-orange-500 text-white";
+    "border-orange-700 hover:font-[600] hover:bg-orange-200 hover:text-orange-900";
+  const activeLinkStyle = "border-none font-[600] bg-orange-500 text-white";
 
   const isEvidenceActive =
     pathname === "/my-evidences" || pathname.startsWith("/evidence/");
@@ -23,10 +23,10 @@ export default function Navbar() {
   }
 
   return (
-    <nav className="p-3 space-y-1 rounded-md text-lg font-[500] font-mono border-2 text-orange-900 border-orange-700 bg-orange-50">
+    <nav className="min-h-[126px] pt-3 px-3 space-y-1 rounded-md text-lg font-[500] font-mono border-2 text-orange-900 border-orange-700 bg-orange-50">
       <Link
         href="/fetch"
-        className={`${baseLinkStyle} ${
+        className={`border-t-1 ${baseLinkStyle} ${
           pathname === "/fetch" ? activeLinkStyle : hoverLinkStyle
         }`}
       >
@@ -34,7 +34,7 @@ export default function Navbar() {
       </Link>
       <Link
         href="/create"
-        className={`${baseLinkStyle} ${
+        className={`border-y-1 ${baseLinkStyle} ${
           pathname === "/create" ? activeLinkStyle : hoverLinkStyle
         }`}
       >
@@ -44,7 +44,7 @@ export default function Navbar() {
       <div>
         <Link
           href="/my-evidences"
-          className={`${baseLinkStyle} ${
+          className={`border-b-1 ${baseLinkStyle} ${
             isEvidenceActive ? activeLinkStyle : hoverLinkStyle
           }`}
         >

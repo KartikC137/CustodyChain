@@ -7,12 +7,14 @@ import {
 } from "../account/upsertAccountInfo";
 import {
   ActivityInputSchema,
-  ActivityInputType,
+  ActivityInput,
 } from "@/src/lib/types/activity.types";
 
-type clientStatus = "client_only" | "pending";
+type clientStatus = "pending";
 
-export async function insertClientActivity(input: ActivityInputType) {
+// todo remove types fetch from activity_type_t from DB
+
+export async function insertClientActivity(input: ActivityInput) {
   const result = ActivityInputSchema.safeParse(input);
   if (!result.success) {
     console.log("insert client: ", result.error);
@@ -20,14 +22,9 @@ export async function insertClientActivity(input: ActivityInputType) {
   }
   const safeInput = result.data;
 
-  const initialStatus: clientStatus =
-    safeInput.type === "fetch" ? "client_only" : "pending";
-  const initialType: accountType =
-    safeInput.type === "fetch" ? "viewer" : "manager";
-
   try {
-    await upsertAccountInfoForNewActivity(safeInput.actor, initialType);
-    await insertNewActivity(initialStatus, safeInput);
+    await upsertAccountInfoForNewActivity(safeInput.actor, "manager");
+    await insertNewActivity(safeInput);
   } catch (err) {
     console.error(
       "insertClientActivity: couldn't insert activity into DB",
@@ -37,10 +34,7 @@ export async function insertClientActivity(input: ActivityInputType) {
   }
 }
 
-async function insertNewActivity(
-  status: clientStatus,
-  activityInfo: ActivityInputType,
-) {
+async function insertNewActivity(activityInfo: ActivityInput) {
   const meta = activityInfo.meta ?? {};
   const blockNumber = activityInfo.blockNumber ?? 0n;
 
@@ -65,7 +59,7 @@ async function insertNewActivity(
       activityInfo.actor.toLowerCase(),
       activityInfo.type,
       activityInfo.owner.toLowerCase(),
-      status,
+      "pending",
       activityInfo.txHash?.toLowerCase(),
       blockNumber.toString(),
       meta,

@@ -40,11 +40,11 @@ export default function RootLayout({
                 <div className="p-5 rounded-md font-mono font-semibold bg-green-100 border-2 border-green-700">
                   <Link
                     href="/"
-                    className="text-4xl text-blue-600 hover:text-blue-800"
+                    className="text-4xl text-green-800 transition-all ease-in-out hover:text-orange-800"
                   >
                     Custody-Chain
                   </Link>
-                  <div className="pl-1 text-lg text-green-900">
+                  <div className="pl-1 text-lg text-orange-800">
                     <ConnectWalletButton />
                   </div>
                 </div>
@@ -54,7 +54,7 @@ export default function RootLayout({
 
               <div
                 id="evidence-container"
-                className="relative h-full overflow-hidden rounded-md bg-orange-50 border-2 border-orange-700"
+                className="relative h-full overflow-hidden rounded-md bg-orange-100 border-2 border-orange-700"
               >
                 {children}
               </div>

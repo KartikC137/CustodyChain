@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useWeb3 } from "@/src/context-and-hooks/Web3Context";
 import { useRef, useState } from "react";
 import { useActivities } from "@/src/context-and-hooks/ActivitiesContext";
@@ -16,10 +17,12 @@ import {
   customDateFilterType,
 } from "@/src/lib/util/filters";
 import Button from "../ui/Button";
+import reset from "../../../public/icons/reset.svg";
 import { Temporal } from "@js-temporal/polyfill";
+import { Address } from "@/src/lib/types/solidity.types";
 
 const actTypeKey = ["activity", ...baseActTypeFilterKey, "discontinued"];
-type actType = "activity" | baseActTypeFilterType | "discontinued";
+type actTypeFilter = "activity" | baseActTypeFilterType | "discontinued";
 const statusFilterKey = ["All", "Success", "Pending", "Failed"] as const;
 export default function ActivityPanel() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -27,7 +30,7 @@ export default function ActivityPanel() {
   const { account } = useWeb3();
   const { activities, isLoadingActivities } = useActivities();
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
-  const [actType, setActType] = useState<actType>("activity");
+  const [actTypeFilter, setActTypeFilter] = useState<actTypeFilter>("activity");
   const [statusFilter, setStatusFilter] =
     useState<(typeof statusFilterKey)[number]>("Success");
   const [quickDateFilter, setQuickDateFilter] =
@@ -39,8 +42,13 @@ export default function ActivityPanel() {
   });
 
   // comparing only first string cuz of value mismatch
-  const isActTypeMatch = (type: string) =>
-    type.charAt(0) === actType.charAt(0) || actType === "activity"
+  const isActTypeMatch = (type: string, actor: Address) =>
+    (actTypeFilter === "received"
+      ? actor !== account
+      : actTypeFilter === "transferred"
+        ? type === "transfer" && actor === account
+        : type.charAt(0) === actTypeFilter.charAt(0)) ||
+    actTypeFilter === "activity"
       ? true
       : false;
 
@@ -71,7 +79,7 @@ export default function ActivityPanel() {
   const filteredActivities = activities.filter(
     (a) =>
       isStatusFilterMatch(a.status) &&
-      isActTypeMatch(a.type) &&
+      isActTypeMatch(a.type, a.actor) &&
       isDatesFilterMatch(a.updatedAt),
   );
 
@@ -129,6 +137,26 @@ export default function ActivityPanel() {
   }
   return (
     <div className="relative overflow-hidden h-full rounded-md border-2 border-orange-700">
+      {(statusFilter !== "Success" ||
+        sortOrder !== "desc" ||
+        actTypeFilter !== "activity") && (
+        <Button
+          className="z-100 absolute top-12 right-2 rounded-sm"
+          variant="delete"
+          onClick={() => {
+            setDateFilters({
+              min: undefined,
+              on: undefined,
+              max: undefined,
+            });
+            setActTypeFilter("activity");
+            setStatusFilter("Success");
+            setSortOrder("desc");
+          }}
+        >
+          <Image src={reset} alt="clear all date filters" />
+        </Button>
+      )}
       {/* title */}
       <div
         className="z-99 absolute top-0 right-0 left-0 p-3 bg-orange-100/60 backdrop-blur-xs rounded-t-sm shadow-xl shadow-orange-500/20 
@@ -139,7 +167,7 @@ export default function ActivityPanel() {
           {/* activity type */}
           <div className="border-2 min-w-30 group relative flex items-center justify-between rounded-sm px-2 bg-orange-100">
             <span className="peer text-center w-full ">
-              {actType.charAt(0).toUpperCase() + actType.slice(1)}
+              {actTypeFilter.charAt(0).toUpperCase() + actTypeFilter.slice(1)}
             </span>
             <div
               className={`peer z-101 top-8 right-0 left-0 absolute hidden group-hover:flex flex-col 
@@ -150,7 +178,7 @@ export default function ActivityPanel() {
               {actTypeKey.map((a) => (
                 <Button
                   onClick={() => {
-                    setActType(a as actType);
+                    setActTypeFilter(a as actTypeFilter);
                     scrollContainerRef.current?.scrollTo({
                       top: 0,
                       behavior: "smooth",
@@ -158,7 +186,7 @@ export default function ActivityPanel() {
                   }}
                   className={`first:border-t-2
                                 ${
-                                  a === actType
+                                  a === actTypeFilter
                                     ? "bg-orange-500 font-[600] text-white"
                                     : "hover:bg-orange-200 hover:font-[600]"
                                 }
@@ -348,32 +376,33 @@ export default function ActivityPanel() {
             return (
               <div
                 key={key}
-                className={`p-2 border-b border-orange-700 last:border-0 ${
+                className={`p-2 border-b rounded-sm border-orange-700 last:border-0 ${
                   activity.status === "failed"
                     ? "**:text-gray-600"
                     : activity.status === "pending" &&
                       "animate-pulse **:text-gray-600"
-                } ${activity.type === "fetch" && "hidden"}`}
+                } `}
               >
                 <div className={`flex justify-between items-center`}>
                   {/* TODO: 
                   update for : status - on_chain, db_only 
-                  currently for : status - failed, pending and client_only and type - create, transfer, discontinue */}
+                  currently for : status - failed, pending and client_only and type - create, transfer, discontinue, receive */}
                   <span
                     className={`font sans font-[700] text-sm ${
-                      activity.type === "transfer" ||
-                      activity.type === "receive"
+                      activity.type === "transfer"
                         ? "text-yellow-700"
                         : activity.type === "discontinue"
                           ? "text-red-700"
-                          : activity.type === "fetch"
-                            ? "text-orange-700"
-                            : activity.type === "create"
-                              ? "text-green-800"
-                              : "text-gray-700"
+                          : activity.type === "create"
+                            ? "text-green-800"
+                            : "text-gray-700"
                     }`}
                   >
-                    {activity.type.toUpperCase()}
+                    {activity.type === "transfer"
+                      ? activity.actor !== account
+                        ? "RECEIVE"
+                        : "TRANSFER"
+                      : activity.type.toUpperCase()}
                     {/* update the error styles, display errors on hover */}
                     {activity.status === "pending"
                       ? ":pending"

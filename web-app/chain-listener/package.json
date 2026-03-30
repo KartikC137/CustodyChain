@@ -5,14 +5,14 @@
   "license": "ISC",
   "author": "Kartik",
   "type": "module",
-  "main": "compiled/index.js",
   "scripts": {
-    "start": "node compiled/index.js",
-    "dev": "tsx watch src/index.ts",
-    "build": "tsc",
+    "start": "bun src/index.ts",
+    "dev": "bun --watch src/index.ts",
+    "build": "echo 'No build needed'",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
+    "dotenv": "^17.3.1",
     "pg": "^8.16.3",
     "socket.io": "^4.8.3",
     "viem": "^2.39.2",
@@ -21,8 +21,6 @@
   "devDependencies": {
     "@types/node": "^24.10.1",
     "@types/pg": "^8.15.6",
-    "dotenv": "^17.2.3",
-    "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   }
 }

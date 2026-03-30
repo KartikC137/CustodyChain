@@ -163,8 +163,6 @@ export async function validateActivity(
       throw new Error(`invalid activity: ${type}`);
     }
 
-    console.info(`the recipients be like`, recipients);
-
     // Activity Success
     const updatedAt = await updateActivityForClient(
       activityId,

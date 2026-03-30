@@ -57,7 +57,7 @@ export function EvidenceProvider({ children }: { children: ReactNode }) {
         (record) => record.owner,
       ),
     );
-    return Array.from(new Set(allAddresses));
+    return Array.from(new Set(allAddresses as `0x${string}`[]));
   }, [evidences, account]);
 
   const insertEvidence = async (evidence: SocketEvidenceDetails) => {

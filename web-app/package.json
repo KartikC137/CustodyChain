@@ -7,9 +7,9 @@
     "custodychain-web"
   ],
   "scripts": {
-    "start": "concurrently \"npm start --workspace=chain-listener\" \"npm start --workspace=custodychain-web\"",
-    "dev": "concurrently \"../DevFiles/DeployEmptyEvidenceLedger.sh\" \"npm run dev --workspace=chain-listener\" \"npm run dev --workspace=custodychain-web\"",
-    "build": "npm run build --workspace=custodychain-web && npm run build --workspace=chain-listener"
+    "start": "concurrently \"bun --filter chain-listener start\" \"bun --filter custodychain-web start\"",
+    "dev": "concurrently \"../DevFiles/DeployEmptyEvidenceLedger.sh\" \"bun --filter chain-listener dev\" \"bun --filter custodychain-web dev\"",
+    "build": "bun --filter custodychain-web build && bun --filter chain-listener build"
   },
   "devDependencies": {
     "concurrently": "^9.2.1"

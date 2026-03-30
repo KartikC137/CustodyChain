@@ -4,13 +4,10 @@ import Button from "../../ui/Button";
 import Input from "../../ui/Input";
 import { useRouter } from "next/navigation"; //replace this later
 import { useState, useEffect } from "react";
-import { useActivities } from "@/src/context-and-hooks/ActivitiesContext";
 import { useWeb3 } from "@/src/context-and-hooks/Web3Context";
 import { evidenceLedgerAddress } from "@/src/lib/contracts/evidence-ledger-address";
 import { evidenceLedgerAbi } from "@/src/lib/contracts/evidence-ledger-abi";
-import { insertClientActivity } from "@/src/api/activities/insertClientActivity";
-import { ActivityInfoForPanel } from "@/src/lib/types/activity.types";
-import { Address, zeroAddress } from "viem";
+import { zeroAddress } from "viem";
 import { validHashCheck } from "@/src/lib/util/helpers";
 
 export default function FetchEvidenceForm() {
@@ -20,8 +17,7 @@ export default function FetchEvidenceForm() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const router = useRouter();
-  const { account, publicClient } = useWeb3();
-  const { addPendingActivity } = useActivities();
+  const { publicClient } = useWeb3();
 
   useEffect(() => {
     if (!evidenceId) {
@@ -54,26 +50,6 @@ export default function FetchEvidenceForm() {
         setError("Evidence with this ID does not exist!");
         return;
       }
-      // Panel
-      const pendingActivity: ActivityInfoForPanel = {
-        id: "-1",
-        status: "client_only",
-        type: "fetch",
-        actor: account as Address,
-        owner: account as Address,
-        txHash: null,
-        updatedAt: new Date(),
-        evidenceId: evidenceId as `0x${string}`,
-      };
-      addPendingActivity(pendingActivity);
-      // DB
-      await insertClientActivity({
-        evidenceId: evidenceId as `0x${string}`,
-        actor: account as Address,
-        owner: account as Address,
-        type: "fetch",
-        initializedAt: new Date(),
-      });
       router.push(`/evidence/${evidenceId}`);
       setEvidenceId("");
     } catch (err) {
