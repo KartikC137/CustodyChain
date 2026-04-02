@@ -14,7 +14,7 @@ import {
   handleSingleValidActivity,
   changeStatus,
   changeStatusFailedExcept,
-} from "../../db/acitivtyHelpers.js";
+} from "../../lib/util/acitivtyHelpers.js";
 import { type Address } from "viem";
 import { evidenceAbi } from "../../../lib/contractAbi/chain-of-custody-abi";
 import { evidenceLedgerAbi } from "../../../lib/contractAbi/evidence-ledger-abi";

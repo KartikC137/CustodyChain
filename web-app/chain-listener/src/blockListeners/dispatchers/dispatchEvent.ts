@@ -1,4 +1,3 @@
-import { logger } from "../logger.js";
 import type {
   NormalizedEvent,
   CreateEvent,
@@ -27,7 +26,7 @@ export async function dispatchEvent(ev: NormalizedEvent): Promise<void> {
         break;
 
       default:
-        logger.info("dispatcher: unknown event, ignoring...", {
+        console.info("dispatcher: unknown event, ignoring...", {
           eventName: ev.eventName,
           address: ev.address,
           tx: ev.txHash,
@@ -36,7 +35,7 @@ export async function dispatchEvent(ev: NormalizedEvent): Promise<void> {
         throw new Error("Unknown event");
     }
   } catch (err) {
-    logger.error("dispatcher: handler error", {
+    console.error("dispatcher: handler error", {
       eventName: ev.eventName,
       address: ev.address,
       tx: ev.txHash,

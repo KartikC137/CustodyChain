@@ -8,7 +8,7 @@ import {
   insertNewActivity,
   changeStatus,
   changeStatusFailedExcept,
-} from "../../db/acitivtyHelpers.js";
+} from "../../lib/util/acitivtyHelpers.js";
 
 const genericError = "DB: Couldn't create evidence";
 

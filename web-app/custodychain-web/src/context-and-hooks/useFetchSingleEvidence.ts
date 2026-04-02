@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState, useRef } from "react";
 import { type Address, zeroAddress } from "viem";
 import { evidenceAbi } from "../lib/contracts/chain-of-custody-abi";
 import { evidenceLedgerAbi } from "../lib/contracts/evidence-ledger-abi";
-import { evidenceLedgerAddress } from "../lib/contracts/evidence-ledger-address";
+import { evidenceLedgerAddress } from "../lib/contracts/_evidenceLedgerAddress";
 import { useWeb3 } from "./Web3Context";
 import { Bytes32 } from "@/src/lib/types/solidity.types";
 import {

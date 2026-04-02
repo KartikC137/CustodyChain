@@ -5,7 +5,7 @@ import Input from "../../ui/Input";
 import { useRouter } from "next/navigation"; //replace this later
 import { useState, useEffect } from "react";
 import { useWeb3 } from "@/src/context-and-hooks/Web3Context";
-import { evidenceLedgerAddress } from "@/src/lib/contracts/evidence-ledger-address";
+import { evidenceLedgerAddress } from "@/src/lib/contracts/_evidenceLedgerAddress";
 import { evidenceLedgerAbi } from "@/src/lib/contracts/evidence-ledger-abi";
 import { zeroAddress } from "viem";
 import { validHashCheck } from "@/src/lib/util/helpers";

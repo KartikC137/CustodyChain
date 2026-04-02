@@ -1,9 +1,9 @@
 import { config } from "./config/config.js";
-import { logger } from "./logger.js";
 import { createServer } from "node:http";
 import { initSocket } from "./config/socket.js";
 import { Client } from "pg";
-import { validateActivity } from "./db/validateActivity.js";
+import { validateActivity } from "./blockListeners/validators/activity/validateActivity.js";
+import { upsertEvidenceLedgerInfo } from "./db/upsertEvidenceLedgerInfo.js";
 import { Address } from "./lib/types/solidity.types.js";
 
 const httpServer = createServer();
@@ -33,24 +33,25 @@ io.on("connection", (socket) => {
 });
 
 // Separate connection just for listening (LISTEN/NOTIFY needs a dedicated connection)
-const activityPgClient = new Client({
+const dbListener = new Client({
   connectionString: process.env.DATABASE_URL,
 });
 
 async function main() {
-  logger.info("Booting chain-listener ...");
-  logger.info(`Using network: ${config.CURRENT_CHAIN.name}`);
-  logger.info(`RPC URL: ${config.RPC_URL}`);
-  logger.info(`Ledger address: ${config.LEDGER_CONTRACT_ADDRESS}`);
+  console.info("Booting chain-listener ...");
+  console.info(`Using network: ${config.CURRENT_CHAIN.name}`);
+  console.info(`RPC URL: ${config.RPC_URL}`);
 
-  await activityPgClient.connect();
-  logger.info(`Connected to PgClient`);
+  await dbListener.connect();
+  console.info(`Connected to PgClient`);
 
-  await activityPgClient.query("LISTEN pending_activity_channel");
-  console.log("Listening for new pending activities...");
+  await dbListener.query("LISTEN pending_activity_channel");
+  await dbListener.query("LISTEN new_ledger");
+  console.log("Listening for new ledgers and pending activities...");
 
-  activityPgClient.on("notification", async (msg) => {
-    if (msg.channel === "pending_activity_channel" && msg.payload) {
+  dbListener.on("notification", async (msg) => {
+    if (!msg.payload) return;
+    if (msg.channel === "pending_activity_channel") {
       const data = JSON.parse(msg.payload);
       const evidenceId = data.evidenceId;
       const activityId = BigInt(data.id);
@@ -72,6 +73,10 @@ async function main() {
       } catch (err) {
         throw err;
       }
+    } else if (msg.channel === "new_ledger") {
+      await upsertEvidenceLedgerInfo(msg.payload as `0x${string}`);
+    } else {
+      console.warn(`Caught notification for unknown channel: ${msg.channel}`);
     }
   });
 

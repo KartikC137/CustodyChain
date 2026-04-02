@@ -1,25 +1,28 @@
-import { publicClient } from "../config/web3config.js";
-import { query } from "../config/db.js";
-import { getIO } from "../config/socket.js";
+import { publicClient } from "../../../config/web3config.js";
+import { query } from "../../../config/db.js";
+import { getIO } from "../../../config/socket.js";
 import {
   insertNewEvidence,
   updateTransferOwnership,
   updateEvidenceDiscontinued,
-} from "./upsertEvidence.js";
-import { Address, Bytes32 } from "../lib/types/solidity.types.js";
+} from "../../../db/upsertEvidence.js";
+import { Address, Bytes32 } from "../../../lib/types/solidity.types.js";
 import { parseEventLogs, zeroAddress } from "viem";
-import { evidenceLedgerAddress } from "../lib/evidence-ledger-address.js";
 import {
   evidenceLedgerAbi,
   event_EvidenceCreated,
+} from "../../../lib/abi/evidence-ledger-abi.js";
+import {
   event_OwnershipTransferred,
   event_EvidenceDiscontinued,
-} from "../lib/abi/evidence-ledger-abi.js";
-import { ActivityTypeType } from "../lib/types/activity.types.js";
-import { SocketEvidenceDetails } from "../lib/types/evidence.types.js";
+} from "../../../lib/abi/chain-of-custody-abi.js";
+import { ActivityTypeType } from "../../../lib/types/activity.types.js";
+import { SocketEvidenceDetails } from "../../../lib/types/evidence.types.js";
 
 export type clientStatus = "client_only" | "failed";
 
+// placeholder
+const evidenceLedgerAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
 /**
  * @dev  1. accepts the pending activity from index
  *       2. fetches txReceipt (can take time depending on chain)
@@ -71,7 +74,7 @@ export async function validateActivity(
     const blockNumberFromReceipt = receipt.blockNumber ?? null;
 
     if (receipt.status !== "success") {
-      console.log("the receopt ", receipt);
+      console.log("the receipt ", receipt);
       throw new Error("on chain failure");
     }
 

@@ -3,7 +3,6 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { type Chain } from "viem";
 import { anvil, sepolia } from "viem/chains";
-import { evidenceLedgerAddress } from "../lib/evidence-ledger-address.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -21,10 +20,6 @@ export function requireEnv(name: string): string {
     throw new Error(`Config: Missing environment variable: ${name}`);
   }
   return value.trim();
-}
-
-if (!evidenceLedgerAddress) {
-  throw new Error(`Config: Missing Evidence Ledger Address`);
 }
 
 const preferSepoliaRpc =
@@ -46,6 +41,5 @@ export const config = {
   RPC_URL,
   DATABASE_URL: requireEnv("DATABASE_URL"),
   CONFIRMATIONS: Number(process.env.CONFIRMATIONS ?? 2),
-  LEDGER_CONTRACT_ADDRESS: evidenceLedgerAddress,
   BATCH_SIZE: Number(process.env.BATCH_SIZE ?? 10),
 };

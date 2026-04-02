@@ -1,7 +1,7 @@
 import { Address, Bytes32 } from "../lib/types/solidity.types.js";
 import { query } from "../config/db.js";
 import { CustodyRecord } from "../lib/types/evidence.types.js";
-import { parseUniqueOwners } from "./evidenceHelpers.js";
+import { parseUniqueOwners } from "../lib/util/evidenceHelpers.js";
 
 /**
  * @param timeOfCreation is bigint to keep custody record consistency and precision.

@@ -3,7 +3,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { type Chain } from "viem";
 import { anvil, sepolia } from "viem/chains";
-import { evidenceLedgerAddress } from "../lib/contracts/evidence-ledger-address";
+import { evidenceLedgerAddress } from "../lib/contracts/_evidenceLedgerAddress";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

@@ -10,7 +10,7 @@ import {
   insertNewActivity,
   handleSingleValidActivity,
   changeStatusFailedExcept,
-} from "../../db/acitivtyHelpers.js";
+} from "../../lib/util/acitivtyHelpers.js";
 import { type Address } from "viem";
 
 const genericError = "DB: Couldn't transfer evidence";

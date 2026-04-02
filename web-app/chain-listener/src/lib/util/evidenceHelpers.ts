@@ -1,5 +1,5 @@
-import { CustodyRecord } from "../lib/types/evidence.types.js";
-import { Address } from "../lib/types/solidity.types.js";
+import { CustodyRecord } from "../types/evidence.types.js";
+import { Address } from "../types/solidity.types.js";
 
 /**
  * @notice AI generated, need to check later

@@ -4,11 +4,9 @@ import { parseAbi } from "viem";
 export const event_EvidenceCreated = parseAbi([
   "event EvidenceCreated(address indexed contractAddress,address indexed creator, bytes32 indexed evidenceId, uint256 timeOfCreation,  bytes32 metadataHash, string desc, uint256 nonce)",
 ]);
-export const event_OwnershipTransferred = parseAbi([
-  "event OwnershipTransferred(bytes32 indexed evidenceId, address indexed previousOwner, address indexed newOwner, uint256 timeOfTransfer)",
-]);
-export const event_EvidenceDiscontinued = parseAbi([
-  "event EvidenceDiscontinued(bytes32 indexed evidenceId, address indexed caller, address indexed currentOwner, uint256 timeOfDiscontinuation)",
+
+export const event_LedgerCreated = parseAbi([
+  "event EvidenceLedgerCreated(address indexed contractAddress, address indexed creator, uint256 indexed blockNumber, uint256 timeStamp)",
 ]);
 
 export const evidenceLedgerAbi = [

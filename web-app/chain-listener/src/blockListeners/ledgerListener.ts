@@ -1,11 +1,8 @@
-import { config } from "../config";
-import { logger } from "../logger";
-import { query } from "../db";
-import { publicClient } from "../web3config";
+import { config } from "../config/config.js";
+import { query } from "../config/db.js";
+import { publicClient } from "../config/web3config.js";
 import { type Log, decodeEventLog, type Address, parseAbiItem } from "viem";
-import { upsertLedgerInfoFromConfig } from "../upsertLedgerInfo";
-import { addEvidenceFromLedger } from "./evidenceListener";
-import { dispatchEvent } from "../dispatchers/dispatchEvent";
+import { dispatchEvent } from "./dispatchers/dispatchEvent.js";
 
 export interface NormalizedEvent<EventArgsType = {}> {
   eventName: string;
@@ -36,12 +33,12 @@ async function getLastCreatedBlock(): Promise<bigint> {
     WHERE contract_address = $1
     LIMIT 1
     `,
-    [config.LEDGER_CONTRACT_ADDRESS]
+    [config.LEDGER_CONTRACT_ADDRESS],
   );
 
   if (res.rowCount === 0) {
     throw new Error(
-      `ledgerListener: couldn't fetch last preocessed block. check the Ledger Address: ${config.LEDGER_CONTRACT_ADDRESS}`
+      `ledgerListener: couldn't fetch last preocessed block. check the Ledger Address: ${config.LEDGER_CONTRACT_ADDRESS}`,
     );
   }
   return BigInt(res.rows[0].last_processed_block);
@@ -53,7 +50,7 @@ async function setLastCreatedBlock(b: bigint): Promise<void> {
     SET last_processed_block = $1
     WHERE contract_address = $2
     `,
-    [b.toString(), config.LEDGER_CONTRACT_ADDRESS]
+    [b.toString(), config.LEDGER_CONTRACT_ADDRESS],
   );
 }
 export async function getLedgerDeployedBlock(): Promise<bigint> {
@@ -64,12 +61,12 @@ export async function getLedgerDeployedBlock(): Promise<bigint> {
     WHERE contract_address = $1
     LIMIT 1
     `,
-    [config.LEDGER_CONTRACT_ADDRESS]
+    [config.LEDGER_CONTRACT_ADDRESS],
   );
 
   if (res.rowCount === 0) {
     throw new Error(
-      `Couldn't fetch ledger deployed block. check the Ledger Address: ${config.LEDGER_CONTRACT_ADDRESS}`
+      `Couldn't fetch ledger deployed block. check the Ledger Address: ${config.LEDGER_CONTRACT_ADDRESS}`,
     );
   }
 
@@ -77,26 +74,29 @@ export async function getLedgerDeployedBlock(): Promise<bigint> {
 }
 
 const evidenceCreatedEvent = parseAbiItem(
-  "event EvidenceCreated(address indexed contractAddress, address indexed creator, bytes32 indexed evidenceId, bytes32 indexed metadataHash, uint256 nonce)"
+  "event EvidenceCreated(address indexed contractAddress, address indexed creator, bytes32 indexed evidenceId, bytes32 indexed metadataHash, uint256 nonce)",
 );
 
 export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 // Only scans for created evidence via ledger for now
 export async function startLedgerListener(): Promise<() => Promise<void>> {
-  logger.info("ledgerListener: starting...");
+  console.info("ledgerListener: starting...");
 
   try {
     await upsertLedgerInfoFromConfig(publicClient);
   } catch (err) {
-    logger.error("ledgerListener: Could not start. Failed to Configure: ", err);
+    console.error(
+      "ledgerListener: Could not start. Failed to Configure: ",
+      err,
+    );
     throw err;
   }
 
   let active = true;
 
   (async function loop() {
-    logger.info("ledgerListener: main loop started");
+    console.info("ledgerListener: main loop started");
 
     while (active) {
       try {
@@ -116,7 +116,7 @@ export async function startLedgerListener(): Promise<() => Promise<void>> {
         const batchMax = from + BigInt(config.BATCH_SIZE) - 1n;
         const to: bigint = batchMax < safeHead ? batchMax : safeHead;
 
-        logger.info("ledgerListener: fetching logs", {
+        console.info("ledgerListener: fetching logs", {
           from: from.toString(),
           to: to.toString(),
           head: head.toString(),
@@ -158,12 +158,12 @@ export async function startLedgerListener(): Promise<() => Promise<void>> {
             !args.metadataHash ||
             !args.nonce
           ) {
-            logger.error(
+            console.error(
               "ledgerListener: missing required args for this event log, skipping event:",
               {
                 eventArgs: args,
                 rawLog: log,
-              }
+              },
             );
             continue;
           }
@@ -183,12 +183,12 @@ export async function startLedgerListener(): Promise<() => Promise<void>> {
 
           try {
             await dispatchEvent(ev);
-            logger.info(
+            console.info(
               "ledgerListener: Evidence Created event dispatched! Evidence ID:",
-              args.evidenceId
+              args.evidenceId,
             );
           } catch (err) {
-            logger.error("ledgerListener: dispatch event error skipping...", {
+            console.error("ledgerListener: dispatch event error skipping...", {
               event: ev,
             });
             continue;
@@ -198,12 +198,12 @@ export async function startLedgerListener(): Promise<() => Promise<void>> {
         await setLastCreatedBlock(to);
         await sleep(100);
       } catch (err) {
-        logger.error("ledgerListener: loop error sleeping for 2000ms...", err);
+        console.error("ledgerListener: loop error sleeping for 2000ms...", err);
         await sleep(2000);
       }
     }
 
-    logger.info("ledgerListener: stopped");
+    console.info("ledgerListener: stopped");
   })();
 
   return async () => {

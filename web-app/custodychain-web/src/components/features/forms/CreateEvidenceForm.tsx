@@ -2,7 +2,7 @@
 
 import Button from "../../ui/Button";
 import Input from "../../ui/Input";
-import { evidenceLedgerAddress } from "@/src/lib/contracts/evidence-ledger-address";
+import { evidenceLedgerAddress } from "@/src/lib/contracts/_evidenceLedgerAddress";
 import { evidenceLedgerAbi } from "@/src/lib/contracts/evidence-ledger-abi";
 import { useEffect, useState } from "react";
 import { useWeb3 } from "@/src/context-and-hooks/Web3Context";
