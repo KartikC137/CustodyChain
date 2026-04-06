@@ -1,0 +1,17 @@
+{
+  "name": "custodychain_web_app",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "chain-listener",
+    "custodychain-web"
+  ],
+  "scripts": {
+    "start": "concurrently \"bun --filter chain-listener start\" \"bun --filter custodychain-web start\"",
+    "dev": "concurrently \"bun --filter chain-listener dev\" \"../DevFiles/DeployEvidenceLedger_ANVIL.sh\" \"bun --filter custodychain-web dev\"",
+    "build": "bun --filter custodychain-web build && bun --filter chain-listener build"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

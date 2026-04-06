@@ -1,0 +1,6 @@
+# env files
+.env*
+
+# modules
+bun.lock
+*/node_modules/

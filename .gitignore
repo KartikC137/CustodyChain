@@ -1,12 +1,5 @@
 # node_modules
 */node_modules/
 
-# env files
-.env*
-
 # Dev files
 DevFiles/
-
-# foundry
-out/
-cache/
