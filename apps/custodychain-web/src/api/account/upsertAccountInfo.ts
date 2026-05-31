@@ -3,29 +3,23 @@
 import { query } from "@/src/configs/dbConfig";
 import { Address } from "@/src/lib/types/solidity.types";
 
-export type accountType = "viewer" | "manager";
-
-export async function upsertAccountInfoForNewActivity(
-  address: Address,
-  accountType: accountType,
-) {
+export async function upsertAccountInfo(address: Address) {
   try {
-    await query(
+    const result = await query(
       `
-      INSERT INTO accounts (address, account_type)
-      VALUES ($1, $2)
-      ON CONFLICT (address) 
-      DO UPDATE SET 
-        account_type = EXCLUDED.account_type,
-        updated_at = CURRENT_TIMESTAMP
-      WHERE 
-        (accounts.account_type = 'viewer' AND EXCLUDED.account_type = 'manager')
-      OR
-        (accounts.account_type = 'manager' AND EXCLUDED.account_type = 'manager')
-      `,
-      [address, accountType],
+      WITH inserted_account AS (
+        INSERT INTO accounts (address)
+        VALUES ($1)
+        ON CONFLICT (address) DO NOTHING
+        RETURNING id
+      )
+      SELECT id FROM inserted_account
+      UNION ALL
+      SELECT id FROM accounts WHERE address = $1
+      LIMIT 1`,
+      [address.toLowerCase()],
     );
-    return;
+    return result.rows[0].id;
   } catch (err) {
     console.error("upsertAccountInfoForNewActivity: db error", err);
     throw new Error("upsert client account: db error");

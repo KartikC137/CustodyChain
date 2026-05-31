@@ -32,20 +32,34 @@ export async function fetchSingleEvidence(
  *
  */
 export async function fetchEvidencesByAccount(
+  chainId: number,
+  ledgerAddress: Address,
   account: Address,
 ): Promise<ContextEvidenceDetails[]> {
   const result = await query(
     `
-     SELECT id, status, description, creator, current_owner AS "currentOwner", created_at AS "createdAt", transferred_at AS "transferredAt", discontinued_at AS "discontinuedAt", chain_of_custody AS "chainOfCustody"
-     FROM evidence
-     WHERE EXISTS (
-      SELECT 1 
-      FROM unnest(chain_of_custody) AS record 
-      WHERE record.owner = $1
-    )
-     ORDER BY created_at DESC
+    SELECT 
+      e.id, 
+      e.status, 
+      e.description, 
+      e.creator, 
+      e.current_owner AS "currentOwner", 
+      e.created_at AS "createdAt", 
+      e.transferred_at AS "transferredAt", 
+      e.discontinued_at AS "discontinuedAt", 
+      e.chain_of_custody AS "chainOfCustody"
+    FROM evidence e
+    INNER JOIN ledger_info l ON e.ledger_id = l.id
+    WHERE l.chain_id = $1 
+      AND l.address = $2
+      AND EXISTS (
+        SELECT 1 
+        FROM unnest(e.chain_of_custody) AS record 
+        WHERE LOWER(record.owner) = LOWER($3)
+      )
+    ORDER BY e.created_at DESC;
     `,
-    [account.toLowerCase()],
+    [chainId, ledgerAddress.toLowerCase(), account.toLowerCase()],
   );
   return result.rows;
 }

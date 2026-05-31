@@ -4,18 +4,17 @@ import { BaseEvidenceSchema } from "./evidence.types";
 
 /**
  * @dev 1. socket emits cannot handle bigint, the createdAt and updatedAt are strings.
- *      2. Adds one more
  */
 
-const BaseSocketUpdateSchema = z.object({
+const BaseSocketActivityUpdateSchema = z.object({
   activityId: z.string(),
   type: z.enum(["create", "transfer", "discontinue"]),
   actor: AddressSchema,
-  txHash: Bytes32Schema.nullable(),
+  txHash: Bytes32Schema,
   updatedAt: z.coerce.date(),
 });
 
-const FailedVariant = BaseSocketUpdateSchema.extend({
+const FailedActivityVariant = BaseSocketActivityUpdateSchema.extend({
   status: z.literal("failed"),
   evidenceId: Bytes32Schema,
   error: z.unknown().transform((val) => {
@@ -25,12 +24,15 @@ const FailedVariant = BaseSocketUpdateSchema.extend({
   }),
 });
 
-const ValidVariant = BaseSocketUpdateSchema.extend({
+const ValidActivityVariant = BaseSocketActivityUpdateSchema.extend({
   status: z.literal("client_only"),
   evidence: BaseEvidenceSchema,
 });
 
-export const SocketUpdateSchema = z.union([FailedVariant, ValidVariant]);
+export const SocketActivityUpdateSchema = z.union([
+  FailedActivityVariant,
+  ValidActivityVariant,
+]);
 
 export type SocketEvidenceDetails = z.infer<typeof BaseEvidenceSchema>;
-export type SocketUpdateType = z.infer<typeof SocketUpdateSchema>;
+export type SocketUpdateType = z.infer<typeof SocketActivityUpdateSchema>;

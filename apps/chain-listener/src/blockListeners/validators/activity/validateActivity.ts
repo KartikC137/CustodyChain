@@ -13,7 +13,10 @@ import {
   event_OwnershipTransferred,
   event_EvidenceDiscontinued,
 } from "../../../lib/abi/chain-of-custody-abi.js";
-import { ActivityTypeType } from "../../../lib/types/activity.types.js";
+import {
+  PendingActivityDbPayload,
+  PendingActivityDbPayloadSchema,
+} from "../../../lib/types/activity.types.js";
 import { SocketEvidenceDetails } from "../../../lib/types/evidence.types.js";
 
 export type clientStatus = "client_only" | "failed";
@@ -30,19 +33,27 @@ export type clientStatus = "client_only" | "failed";
  *       3. do some more receipt checks, make it robust
  */
 export async function validateActivity(
-  chainId: number,
-  evidenceId: Bytes32,
-  activityId: bigint,
-  type: ActivityTypeType,
-  actor: Address,
-  txHash: Bytes32 | null,
-  blockNumber: bigint | null,
+  data: PendingActivityDbPayload,
 ): Promise<void> {
-  const publicClient = getPublicClient(chainId);
+  const parsed = PendingActivityDbPayloadSchema.safeParse(data);
+  if (!parsed.success) {
+    console.error("activity parsing error: ", parsed.error);
+    throw new Error("invalid db activity payload");
+  }
+
+  const {
+    id: activityId,
+    txHash,
+    evidenceId,
+    actor,
+    type,
+    chainId,
+  } = parsed.data;
+
   const io = getIO();
-  let recipients: Address[];
-  //@todo use zod to parse inputs here
-  actor = actor.toLowerCase() as Address;
+  const publicClient = getPublicClient(chainId);
+
+  let socketEventRecipients: Address[];
   try {
     if (!activityId) {
       console.error("validateActivity: query error, invalid activity Id.");
@@ -85,6 +96,8 @@ export async function validateActivity(
         blockNumberFromReceipt,
         txHash,
         args.desc,
+        chainId,
+        args.ledgerAddress,
       );
       evidence = {
         id: args.evidenceId,
@@ -95,7 +108,7 @@ export async function validateActivity(
         createdAt: time,
         transferredAt: time,
       };
-      recipients = [creator];
+      socketEventRecipients = [creator];
     } else if (type === "transfer") {
       const eventLogs = parseEventLogs({
         abi: event_OwnershipTransferred,
@@ -121,7 +134,7 @@ export async function validateActivity(
         createdAt: result.createdAt.toString(),
         transferredAt: args.timeOfTransfer.toString(),
       };
-      recipients = result.uniqueOwners;
+      socketEventRecipients = result.uniqueOwners;
     } else if (type === "discontinue") {
       const eventLogs = parseEventLogs({
         abi: event_EvidenceDiscontinued,
@@ -147,7 +160,7 @@ export async function validateActivity(
         transferredAt: result.transferredAt.toString(),
         discontinuedAt: args.timeOfDiscontinuation.toString(),
       };
-      recipients = result.uniqueOwners;
+      socketEventRecipients = result.uniqueOwners;
     } else {
       throw new Error(`invalid activity: ${type}`);
     }
@@ -160,8 +173,8 @@ export async function validateActivity(
       receipt.blockNumber,
     );
 
-    // Socket emit to recipients
-    io.to(recipients).emit("activity_update", {
+    // Socket emit to socketEventRecipients
+    io.to(socketEventRecipients).emit("activity_update", {
       activityId: activityId.toString(),
       actor: actor,
       type: type,
@@ -175,7 +188,7 @@ export async function validateActivity(
       activityId,
       "failed",
       txHash,
-      blockNumber,
+      null,
       String(err),
     );
     io.to(actor).emit("activity_update", {
@@ -183,7 +196,7 @@ export async function validateActivity(
       actor: actor,
       type: type,
       status: "failed",
-      txHash: txHash ? txHash.toLowerCase() : null,
+      txHash: txHash,
       updatedAt: updatedAt,
       evidenceId: evidenceId,
       error: err,
@@ -199,7 +212,7 @@ export async function validateActivity(
 async function updateActivityForClient(
   activityId: bigint,
   status: clientStatus,
-  txHash: Bytes32 | null,
+  txHash: Bytes32,
   blockNumber: bigint | null,
   error?: string,
 ): Promise<Date> {
@@ -223,7 +236,7 @@ async function updateActivityForClient(
       RETURNING updated_at
       `,
         [
-          txHash ? txHash.toLowerCase() : null,
+          txHash,
           blockNumber ? blockNumber.toString() : null,
           String(error || "unknown error"),
           activityId.toString(),
@@ -242,7 +255,7 @@ async function updateActivityForClient(
       RETURNING updated_at
       `,
         [
-          txHash.toLowerCase(),
+          txHash,
           blockNumber ? blockNumber.toString() : null,
           activityId.toString(),
         ],
@@ -252,6 +265,6 @@ async function updateActivityForClient(
     return updatedAt;
   } catch (err) {
     console.error("updateActivityForClient: db error", err);
-    throw new Error("db error");
+    throw new Error("activity validation failed: db error");
   }
 }

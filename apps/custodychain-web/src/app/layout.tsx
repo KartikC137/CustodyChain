@@ -1,7 +1,7 @@
 import "../css/globals.css";
 import type { Metadata } from "next";
 import { Montserrat } from "next/font/google";
-import Link from "next/link";
+import { WalletProvider } from "../context-and-hooks/WalletContext";
 
 const monsterrat = Montserrat({
   variable: "--font-monsteratt",
@@ -21,7 +21,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${monsterrat.variable} `}>{children}</body>
+      <body
+        className={`bg-orange-100 overflow-x-hidden h-full ${monsterrat.variable}`}
+      >
+        <WalletProvider>{children}</WalletProvider>
+      </body>
     </html>
   );
 }

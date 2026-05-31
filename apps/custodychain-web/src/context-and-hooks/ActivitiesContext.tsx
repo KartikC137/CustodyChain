@@ -9,10 +9,11 @@ import {
   useCallback,
 } from "react";
 import { ActivityInfoForPanel } from "../lib/types/activity.types";
-import { useWeb3 } from "./Web3Context";
+import { useLedger } from "./LedgerContext";
 import { useEvidences } from "./EvidencesContext";
 import { fetchActivities } from "../api/activities/fetchActivities";
-import { SocketUpdateSchema } from "../lib/types/socketEvent.types";
+import { SocketActivityUpdateSchema } from "../lib/types/socketEvent.types";
+import { useWallet } from "./WalletContext";
 
 interface ActivityContextType {
   activities: ActivityInfoForPanel[];
@@ -32,7 +33,8 @@ interface ActivityContextType {
 const ActivityContext = createContext<ActivityContextType | null>(null);
 
 export function ActivityProvider({ children }: { children: ReactNode }) {
-  const { account, chain } = useWeb3();
+  const { account, chain } = useWallet();
+  const { ledgerAddress } = useLedger();
   const { insertEvidence, updateEvidence } = useEvidences();
   const [activities, setActivities] = useState<ActivityInfoForPanel[]>([]);
   const [isLoadingActivities, setIsLoadingActivities] = useState(false);
@@ -44,7 +46,13 @@ export function ActivityProvider({ children }: { children: ReactNode }) {
       if (!account) {
         return;
       }
-      const data = await fetchActivities(account, chain?.id as number);
+
+      const data = await fetchActivities(
+        account,
+        chain?.id as number,
+        ledgerAddress,
+      );
+      console.log("data of activity", data);
       setActivities(data);
     } catch (err) {
       console.error("Failed to fetch activities", err);
@@ -61,14 +69,14 @@ export function ActivityProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const socket = getSocket();
 
-    const handleUpdate = (rawUpdate: any) => {
-      const result = SocketUpdateSchema.safeParse(rawUpdate);
+    const handleUpdate = (activityUpdate: any) => {
+      const result = SocketActivityUpdateSchema.safeParse(activityUpdate);
       if (!result.success) {
         console.error("parse error", result.error);
-        return;
-      } // maybe throw here
+        throw new Error("ActivityContext: socket data parse failed");
+      }
       const update = result.data;
-      console.info("Socket Update Parsed:", update);
+      console.info("Activity Update Parsed:", update);
 
       setActivities((prev) => {
         const targetIndex = prev.findIndex(
@@ -76,7 +84,7 @@ export function ActivityProvider({ children }: { children: ReactNode }) {
             act.status === "pending" &&
             update.txHash &&
             act.txHash &&
-            act.txHash.toLowerCase() === update.txHash,
+            act.txHash === update.txHash,
         );
         if (targetIndex === -1) {
           return prev;
@@ -88,7 +96,7 @@ export function ActivityProvider({ children }: { children: ReactNode }) {
           status: update.status,
           txHash: update.txHash,
           updatedAt: update.updatedAt,
-          error: update.status === "failed" ? update.error : undefined,
+          error: update.status === "failed" ? update.error : "unknown error",
         };
         return newActivities;
       });
@@ -137,6 +145,7 @@ export function ActivityProvider({ children }: { children: ReactNode }) {
   }, [account]);
 
   const addPendingActivity = (newActivity: ActivityInfoForPanel) => {
+    if (newActivity.status !== "pending") return;
     if (!newActivity.txHash) {
       setActivities((prev) => [{ ...newActivity, status: "failed" }, ...prev]);
     } else {

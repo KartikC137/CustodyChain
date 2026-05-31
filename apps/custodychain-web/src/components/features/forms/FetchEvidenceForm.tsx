@@ -4,7 +4,7 @@ import Button from "../../ui/Button";
 import Input from "../../ui/Input";
 import { useRouter } from "next/navigation"; //replace this later
 import { useState, useEffect } from "react";
-import { useWeb3 } from "@/src/context-and-hooks/Web3Context";
+import { useLedger } from "@/src/context-and-hooks/LedgerContext";
 import { evidenceLedgerAbi } from "@/src/lib/contracts/evidence-ledger-abi";
 import { zeroAddress } from "viem";
 import { validHashCheck } from "@/src/lib/util/helpers";
@@ -16,7 +16,7 @@ export default function FetchEvidenceForm() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const router = useRouter();
-  const { publicClient, ledgerAddress } = useWeb3();
+  const { publicClient, ledgerAddress } = useLedger();
 
   useEffect(() => {
     if (!evidenceId) {

@@ -3,7 +3,7 @@
 import Button from "../../ui/Button";
 import { evidenceAbi } from "@/src/lib/contracts/chain-of-custody-abi";
 import { useState } from "react";
-import { useWeb3 } from "@/src/context-and-hooks/Web3Context";
+import { useLedger } from "@/src/context-and-hooks/LedgerContext";
 import { insertClientActivity } from "@/src/api/activities/insertClientActivity";
 import { useActivities } from "@/src/context-and-hooks/ActivitiesContext";
 import {
@@ -14,6 +14,7 @@ import {
 import { Address } from "@/src/lib/types/solidity.types";
 import { ActivityInfoForPanel } from "@/src/lib/types/activity.types";
 import { Bytes32 } from "@/src/lib/types/solidity.types";
+import { useWallet } from "@/src/context-and-hooks/WalletContext";
 
 interface DiscontinueEvidenceProps {
   contractAddress: Address;
@@ -28,7 +29,8 @@ export default function DiscontinueEvidence({
   status,
   creator,
 }: DiscontinueEvidenceProps) {
-  const { account, chain, publicClient, walletClient } = useWeb3();
+  const { account, chain, publicClient, walletClient } = useWallet();
+  const { ledgerIdDb } = useLedger();
   const { addPendingActivity } = useActivities();
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -88,6 +90,7 @@ export default function DiscontinueEvidence({
           initializedAt: initializedAt,
         },
         chain.id,
+        ledgerIdDb,
       );
     } catch (err) {
       //todo: expect more errors

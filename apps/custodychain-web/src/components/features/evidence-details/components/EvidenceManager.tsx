@@ -30,7 +30,6 @@ export default function EvidenceManager({
 
       {currentAccount.toLowerCase() === currentOwner.toLowerCase() && (
         <TransferOwnershipForm
-          creator={creator}
           contractAddress={contractAddress}
           status={status}
           currentOwner={currentOwner as Address}

@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState, useRef } from "react";
 import { type Address, zeroAddress } from "viem";
 import { evidenceAbi } from "../lib/contracts/chain-of-custody-abi";
 import { evidenceLedgerAbi } from "../lib/contracts/evidence-ledger-abi";
-import { useWeb3 } from "./Web3Context";
 import { Bytes32 } from "@/src/lib/types/solidity.types";
 import {
   EvidenceDetails,
@@ -14,12 +13,15 @@ import {
 import { fetchSingleEvidence } from "../api/evidences/fetchEvidence";
 import { getSocket } from "@/src/configs/socketConfig";
 import { SocketUpdateType } from "../lib/types/socketEvent.types";
+import { useWallet } from "./WalletContext";
+import { useLedger } from "./LedgerContext";
 
 /**
  * @notice Primarily fetches data from DB but chain of custody requires , fallback is rpc calls to the contract.
  */
 export default function useFetchSingleEvidence(evidenceId: Bytes32) {
-  const { publicClient, ledgerAddress } = useWeb3();
+  const { publicClient } = useWallet();
+  const { ledgerAddress } = useLedger();
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -42,19 +44,19 @@ export default function useFetchSingleEvidence(evidenceId: Bytes32) {
       setError(null);
       setEvidenceDetails(null);
 
-      try {
-        const dbData = await fetchSingleEvidence(idToFetch as `0x${string}`);
-        const result = EvidenceDetailsSchema.safeParse(dbData);
-        if (!result.success) throw new Error("invalid data from db received");
-        const evidence = result.data;
-        setEvidenceDetails(evidence);
-        setDataSource("DB");
-        setIsLoading(false);
-        fetchInFlightRef.current = null;
-        return;
-      } catch (dbErr) {
-        console.warn("DB Fetch failed, falling back to blockchain...", dbErr);
-      }
+      // try {
+      //   const dbData = await fetchSingleEvidence(idToFetch as `0x${string}`);
+      //   const result = EvidenceDetailsSchema.safeParse(dbData);
+      //   if (!result.success) throw new Error("invalid data from db received");
+      //   const evidence = result.data;
+      //   setEvidenceDetails(evidence);
+      //   setDataSource("DB");
+      //   setIsLoading(false);
+      //   fetchInFlightRef.current = null;
+      //   return;
+      // } catch (dbErr) {
+      //   console.warn("DB Fetch failed, falling back to blockchain...", dbErr);
+      // }
 
       if (!publicClient || !ledgerAddress) {
         setError("Please connect your wallet first.");

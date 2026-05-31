@@ -4,7 +4,7 @@ import Button from "../../ui/Button";
 import Input from "../../ui/Input";
 import { evidenceLedgerAbi } from "@/src/lib/contracts/evidence-ledger-abi";
 import { useEffect, useState } from "react";
-import { useWeb3 } from "@/src/context-and-hooks/Web3Context";
+import { useWallet } from "@/src/context-and-hooks/WalletContext";
 import { useActivities } from "@/src/context-and-hooks/ActivitiesContext";
 import {
   encodePacked,
@@ -18,11 +18,12 @@ import { insertClientActivity } from "@/src/api/activities/insertClientActivity"
 import { ActivityInfoForPanel } from "@/src/lib/types/activity.types";
 import { validHashCheck, isValidDesc } from "@/src/lib/util/helpers";
 import Link from "next/link";
+import { useLedger } from "@/src/context-and-hooks/LedgerContext";
 
 export default function CreateEvidenceForm() {
   const { addPendingActivity } = useActivities();
-  const { account, chain, walletClient, publicClient, ledgerAddress } =
-    useWeb3();
+  const { account, chain, walletClient, publicClient } = useWallet();
+  const { ledgerAddress, ledgerIdDb } = useLedger();
   const [metadataHash, setMetadataHash] = useState<string>("");
   const [description, setDescription] = useState<string>("");
   const [evidenceId, setEvidenceId] = useState<string | null>(null);
@@ -49,7 +50,7 @@ export default function CreateEvidenceForm() {
     }
   }, [metadataHash, description]);
 
-  async function handleSubmit(event: React.FormEvent) {
+  async function handleSubmit(event: React.SubmitEvent) {
     event.preventDefault();
     setError(null);
 
@@ -105,6 +106,11 @@ export default function CreateEvidenceForm() {
         gas: 1_200_000n,
       });
 
+      if (!txHash) {
+        setError("Transaction hash could not be fetched");
+        return;
+      }
+
       const _newContractAddress = (await publicClient.readContract({
         address: ledgerAddress,
         abi: evidenceLedgerAbi,
@@ -112,6 +118,10 @@ export default function CreateEvidenceForm() {
         args: [_evidenceId],
       })) as Address;
 
+      if (_newContractAddress === zeroAddress) {
+        setError("Evidence Creation was reverted!");
+        return;
+      }
       // Activity context
       const pendingActivity: ActivityInfoForPanel = {
         id: "-1",
@@ -136,6 +146,7 @@ export default function CreateEvidenceForm() {
           initializedAt: initializedAt,
         },
         chain.id,
+        ledgerIdDb,
       );
 
       setMetadataHash("");

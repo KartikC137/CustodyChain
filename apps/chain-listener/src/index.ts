@@ -2,14 +2,15 @@ import { createServer } from "node:http";
 import { initSocket } from "./configs/socketConfig.js";
 import { Client } from "pg";
 import { validateActivity } from "./blockListeners/validators/activity/validateActivity.js";
-import { upsertEvidenceLedgerInfo } from "./db/upsertEvidenceLedgerInfo.js";
+import { validateLedger } from "./blockListeners/validators/ledgers/validateLedger.js";
+import { validateRoles } from "./blockListeners/validators/ledgers/validateRoles.js";
 import { Address } from "./lib/types/solidity.types.js";
 
 const httpServer = createServer();
 const io = initSocket(httpServer);
 
 io.on("connection", (socket) => {
-  console.info("-------------New client connected:--------------", socket.id);
+  // console.info("-------------New client connected:--------------", socket.id);
 
   socket.on("connect_account", (accountAddress: Address) => {
     if (!accountAddress) {
@@ -17,13 +18,13 @@ io.on("connection", (socket) => {
     }
     const roomName = accountAddress.toLowerCase();
     socket.join(roomName);
-    console.info(`Socket ${socket.id} joined room: ${roomName}`);
+    // console.info(`Socket ${socket.id} joined room: ${roomName}`);
   });
   socket.on("disconnect_account", (accountAddress: Address) => {
     if (!accountAddress) return;
     const roomName = accountAddress.toLowerCase();
     socket.leave(roomName);
-    console.info(`Socket ${socket.id} left room: ${roomName}`);
+    // console.info(`Socket ${socket.id} left room: ${roomName}`);
   });
 
   socket.on("disconnect", () => {
@@ -44,39 +45,20 @@ async function main() {
 
   await dbListener.query("LISTEN pending_activity_channel");
   await dbListener.query("LISTEN new_ledger");
-  console.log("Listening for new ledgers and pending activities...");
+  await dbListener.query("LISTEN pending_roles_channel");
+  console.log("Listening for Pending: Ledgers, Roles, Activities... ");
 
   dbListener.on("notification", async (msg) => {
     if (!msg.payload) return;
-    if (msg.channel === "pending_activity_channel") {
+    if (msg.channel === "new_ledger") {
       const data = JSON.parse(msg.payload);
-      const evidenceId = data.evidenceId;
-      const activityId = BigInt(data.id);
-      const type = data.type;
-      const actor = data.actor;
-      const txHash = data.txHash ? (data.txHash as `0x${string}`) : null;
-      const blockNumber = data.blockNumber ? BigInt(data.blockNumber) : null;
-      const chainId = data.chainId as number;
-
-      try {
-        //@todo pass raw data here later on, or parse it using zod beforehand
-        await validateActivity(
-          chainId,
-          evidenceId,
-          activityId,
-          type,
-          actor,
-          txHash,
-          blockNumber,
-        );
-      } catch (err) {
-        throw err;
-      }
-    } else if (msg.channel === "new_ledger") {
+      await validateLedger(data);
+    } else if (msg.channel === "pending_roles_channel") {
       const data = JSON.parse(msg.payload);
-      const txHash = data.txHash as `0x${string}`;
-      const chainId = data.chainId as number;
-      await upsertEvidenceLedgerInfo(txHash, chainId);
+      await validateRoles(data);
+    } else if (msg.channel === "pending_activity_channel") {
+      const data = JSON.parse(msg.payload);
+      await validateActivity(data);
     } else {
       console.warn(`Caught notification for unknown channel: ${msg.channel}`);
     }

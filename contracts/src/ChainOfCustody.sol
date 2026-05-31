@@ -5,14 +5,18 @@ pragma solidity ^0.8.20;
 /**
  * @title Evidence Contract for Chain of Custody
  * @author Kartik Kumbhar
- *
+ * This contract is the skeleton for deploying evidence contracts.
  * Evidence ID and Contract Address define a unique piece of evidence.
  * 1. Evidence ID is passed through EvidenceLedger contract.
  * 2. Contract Address is the address of this contract.
  *
  * @notice
  */
-contract Evidence {
+import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
+import {TRANSFERRER_ROLE, RECEIVER_ROLE} from "./lib/Roles.sol";
+
+contract Evidence is Initializable {
     //////////////////
     // Errors      ///
     //////////////////
@@ -20,8 +24,10 @@ contract Evidence {
     error Error_CreatorIsNotInitialOwner();
     error Error_CallerIsNotCurrentOwner();
     error Error_SelfTransferIsNotAllowed();
+    error Error_SenderDoesNotHaveTransferAccess();
+    error Error_SenderDoesNotHaveReceiverAccess();
     error Error_CallerIsNotCreator();
-    error Error_EvindenceDiscontinued();
+    error Error_EvidenceDiscontinued();
 
     ////////////////////////
     // State Variables   ///
@@ -31,16 +37,16 @@ contract Evidence {
         uint256 timestamp;
     }
 
-    uint256 private immutable NONCE;
-    address private immutable ORIGINAL_EVIDENCE_LEDGER_ADDRESS;
-    address private immutable CREATOR;
-    bytes32 private immutable EVIDENCE_ID;
-    uint256 private immutable TIME_OF_CREATION;
+    IAccessControl private accessManager;
+    uint256 private nonce;
+    address private creator;
+    bytes32 private id;
+    uint256 private timeOfCreation;
     uint256 private timeOfDiscontinuation;
     address private owner;
     CustodyRecord[] private chainOfCustody;
     string private description;
-    bool private isActive = true;
+    bool private isActive;
 
     //////////////
     // Events  ///
@@ -56,7 +62,7 @@ contract Evidence {
     // Modifiers   ///
     //////////////////
     modifier onlyCreator() {
-        if (msg.sender != CREATOR) revert Error_CallerIsNotCreator();
+        if (msg.sender != creator) revert Error_CallerIsNotCreator();
         _;
     }
 
@@ -66,7 +72,7 @@ contract Evidence {
     }
 
     modifier onlyIfActive() {
-        if (!isActive) revert Error_EvindenceDiscontinued();
+        if (!isActive) revert Error_EvidenceDiscontinued();
         _;
     }
 
@@ -74,9 +80,10 @@ contract Evidence {
     // Functions   ///
     //////////////////
 
-    // Constructor
-
-    constructor(
+    /**
+     * @param _nonce :
+     */
+    function initialize(
         uint256 _nonce,
         address _evidenceLedgerAddress,
         bytes32 _evidenceId,
@@ -84,7 +91,7 @@ contract Evidence {
         address _initialOwner,
         string memory _description,
         uint256 _timeOfCreation
-    ) {
+    ) external initializer {
         require(_nonce > 0, "Invalid Nonce. Should be greater than 0.");
         if (msg.sender != _evidenceLedgerAddress) {
             revert Error_UnauthorizedDeployment();
@@ -100,51 +107,55 @@ contract Evidence {
             revert("Invalid description: description cannot be empty");
         }
 
-        NONCE = _nonce;
-        ORIGINAL_EVIDENCE_LEDGER_ADDRESS = _evidenceLedgerAddress;
-        CREATOR = _creator;
-        owner = CREATOR;
-        TIME_OF_CREATION = _timeOfCreation;
-        chainOfCustody.push(CustodyRecord({owner: _creator, timestamp: TIME_OF_CREATION}));
-        EVIDENCE_ID = _evidenceId;
+        isActive = true;
+        accessManager = IAccessControl(_evidenceLedgerAddress);
+        nonce = _nonce;
+        creator = _creator;
+        owner = creator;
+        timeOfCreation = _timeOfCreation;
+        chainOfCustody.push(CustodyRecord({owner: _creator, timestamp: timeOfCreation}));
+        id = _evidenceId;
         description = _description;
     }
 
-    // External Functions
-    function transferOwnership(address newOwner) external onlyIfActive {
+    function transferOwnership(address newOwner) external onlyIfActive onlyCurrentOwner(msg.sender) {
         if (msg.sender == newOwner) revert Error_SelfTransferIsNotAllowed();
-        _transferOwnership(msg.sender, newOwner);
-        emit OwnershipTransferred(EVIDENCE_ID, msg.sender, owner, block.timestamp);
+        if (!accessManager.hasRole(TRANSFERRER_ROLE, msg.sender)) revert Error_SenderDoesNotHaveTransferAccess();
+        if (!accessManager.hasRole(RECEIVER_ROLE, newOwner)) revert Error_SenderDoesNotHaveReceiverAccess();
+
+        emit OwnershipTransferred(id, msg.sender, newOwner, block.timestamp);
+
+        _transferOwnership(newOwner);
     }
 
-    function discontinueEvidence() external onlyIfActive {
+    function discontinueEvidence() external onlyIfActive onlyCreator {
+        emit EvidenceDiscontinued(id, msg.sender, owner, block.timestamp);
+
         _discontinueEvidence();
-        emit EvidenceDiscontinued(EVIDENCE_ID, msg.sender, owner, block.timestamp);
     }
 
     // Private & Internal Functions View function
-    function _transferOwnership(address _from, address _to) private onlyCurrentOwner(_from) {
+    function _transferOwnership(address _to) private {
         owner = _to;
         chainOfCustody.push(CustodyRecord({owner: _to, timestamp: block.timestamp}));
     }
 
-    function _discontinueEvidence() private onlyCreator {
+    function _discontinueEvidence() private {
         timeOfDiscontinuation = block.timestamp;
         isActive = false;
     }
 
-    //to wrap evidence info in one object
     // Public & External Functions View Functions
     function getNonce() external view returns (uint256) {
-        return NONCE;
+        return nonce;
     }
 
     function getEvidenceId() external view returns (bytes32) {
-        return EVIDENCE_ID;
+        return id;
     }
 
     function getTimeOfCreation() external view returns (uint256) {
-        return TIME_OF_CREATION;
+        return timeOfCreation;
     }
 
     function getTimeOfDiscontinuation() external view returns (uint256) {
@@ -152,7 +163,7 @@ contract Evidence {
     }
 
     function getEvidenceCreator() external view returns (address) {
-        return CREATOR;
+        return creator;
     }
 
     function getEvidenceDescription() external view returns (string memory) {

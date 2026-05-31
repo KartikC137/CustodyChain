@@ -9,12 +9,13 @@ import {
   useMemo,
 } from "react";
 import { fetchEvidencesByAccount } from "../api/evidences/fetchEvidence";
-import { useWeb3 } from "./Web3Context";
+import { useLedger } from "./LedgerContext";
 import { ActivityType } from "../lib/types/activity.types";
 import { SocketEvidenceDetails } from "../lib/types/socketEvent.types";
 import { ContextEvidenceDetails } from "../lib/types/evidence.types";
 import { parseChainOfCustody } from "../lib/util/helpers";
 import { Address } from "../lib/types/solidity.types";
+import { useWallet } from "./WalletContext";
 
 type EvidenceContextType = {
   evidences: ContextEvidenceDetails[];
@@ -29,15 +30,20 @@ type EvidenceContextType = {
 const EvidenceContext = createContext<EvidenceContextType | null>(null);
 
 export function EvidenceProvider({ children }: { children: ReactNode }) {
-  const { account } = useWeb3();
+  const { account } = useWallet();
+  const { ledgerAddress, ledgerChainId: chainId } = useLedger();
   const [evidences, setEvidences] = useState<ContextEvidenceDetails[]>([]);
   const [isLoadingEvidences, setIsLoadingEvidences] = useState(false);
 
-  const loadData = async () => {
+  const loadEvidences = async () => {
     if (!account) return;
     setIsLoadingEvidences(true);
     try {
-      const data = await fetchEvidencesByAccount(account);
+      const data = await fetchEvidencesByAccount(
+        chainId,
+        ledgerAddress,
+        account,
+      );
       setEvidences(data);
     } catch (e) {
       console.error(e);
@@ -47,7 +53,7 @@ export function EvidenceProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    loadData();
+    loadEvidences();
   }, [account]);
 
   const uniqueAddresses = useMemo(() => {
@@ -118,7 +124,7 @@ export function EvidenceProvider({ children }: { children: ReactNode }) {
         evidences,
         isLoadingEvidences,
         uniqueAddresses,
-        refreshEvidences: loadData,
+        refreshEvidences: loadEvidences,
         insertEvidence,
         updateEvidence,
         // removeEvidence,

@@ -21,9 +21,7 @@ export const ActivityInputSchema = z.object({
   actor: AddressSchema,
   owner: AddressSchema,
   type: ActivityTypeSchema,
-  txHash: Bytes32Schema.optional(),
-  blockNumber: z.coerce.bigint().optional(),
-  meta: z.record(z.string(), z.unknown()).optional(),
+  txHash: Bytes32Schema,
   initializedAt: z.date(),
 });
 
@@ -37,7 +35,7 @@ export interface ActivityInfoForPanel {
   id: string;
   type: ActivityTypeForPanel;
   status: ActivityStatus;
-  txHash: Bytes32 | null;
+  txHash: Bytes32;
   updatedAt: Date;
   actor: Address;
   evidenceId: Bytes32;

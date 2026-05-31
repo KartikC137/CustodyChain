@@ -15,6 +15,8 @@ export async function insertNewEvidence(
   block: bigint,
   creationTxHash: Bytes32,
   desc: string,
+  chainId: number,
+  ledgerAddress: Address,
 ) {
   try {
     await query(
@@ -33,9 +35,10 @@ export async function insertNewEvidence(
       deployed_block,
       last_tx_block,
       description,
-      chain_of_custody
+      chain_of_custody,
+      ledger_id
     )
-    VALUES ('active', $1, $2, $3, $4, $4, $5, $5, $6, $6, $7, $7, $8, ARRAY[ ($4, $5)::custody_record_t ])
+    VALUES ('active', $1, $2, $3, $4, $4, $5, $5, $6, $6, $7, $7, $8, ARRAY[ ($4, $5)::custody_record_t ], (SELECT id FROM ledger_info WHERE chain_id = $9 AND address = $10))
     ON CONFLICT (id) DO NOTHING
     `,
       [
@@ -47,6 +50,8 @@ export async function insertNewEvidence(
         creationTxHash.toLowerCase(),
         block,
         desc,
+        chainId,
+        ledgerAddress.toLowerCase(),
       ],
     );
   } catch (err) {

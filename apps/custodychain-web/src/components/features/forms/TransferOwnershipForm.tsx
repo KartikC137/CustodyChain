@@ -3,7 +3,7 @@
 import Button from "../../ui/Button";
 import Input from "../../ui/Input";
 import { useState, useEffect } from "react";
-import { useWeb3 } from "@/src/context-and-hooks/Web3Context";
+import { useLedger } from "@/src/context-and-hooks/LedgerContext";
 import { useActivities } from "@/src/context-and-hooks/ActivitiesContext";
 import {
   ContractFunctionRevertedError,
@@ -15,12 +15,12 @@ import { ActivityInfoForPanel } from "@/src/lib/types/activity.types";
 import { evidenceAbi } from "@/src/lib/contracts/chain-of-custody-abi";
 import { insertClientActivity } from "@/src/api/activities/insertClientActivity";
 import { validAddressCheck } from "@/src/lib/util/helpers";
+import { useWallet } from "@/src/context-and-hooks/WalletContext";
 
 /**
  * @todo IMP: switch to ref for input checking instead of state
  */
 interface TransferOwnershipFormProps {
-  creator: Address;
   contractAddress: Address;
   status: "active" | "discontinued";
   currentOwner: Address;
@@ -28,13 +28,13 @@ interface TransferOwnershipFormProps {
 }
 
 export default function TransferOwnershipForm({
-  creator,
   contractAddress,
   status,
   currentOwner,
   evidenceId,
 }: TransferOwnershipFormProps) {
-  const { account, chain, walletClient, publicClient } = useWeb3();
+  const { account, chain, walletClient, publicClient } = useWallet();
+  const { ledgerIdDb } = useLedger();
   const { addPendingActivity } = useActivities();
 
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -119,6 +119,7 @@ export default function TransferOwnershipForm({
           initializedAt: initializedAt,
         },
         chain.id,
+        ledgerIdDb,
       );
     } catch (err) {
       //todo: expect more errors

@@ -1,19 +1,19 @@
 "use client";
 
 import useFetchSingleEvidence from "@/src/context-and-hooks/useFetchSingleEvidence";
-import { useWeb3 } from "@/src/context-and-hooks/Web3Context";
 import { Bytes32 } from "@/src/lib/types/solidity.types";
 import EvidenceSummary from "./components/Summary";
 import ChainOfCustodyViewer from "./components/ChainOfCustodyViewer";
 import EvidenceManager from "./components/EvidenceManager";
 import EvidenceContentSkeleton from "@/src/components/skeletons/EvidenceContentSkeleton";
+import { useWallet } from "@/src/context-and-hooks/WalletContext";
 
 export default function EvidenceDetails({
   evidenceId,
 }: {
   evidenceId: Bytes32;
 }) {
-  const { account } = useWeb3();
+  const { account } = useWallet();
   const { dataSource, isLoading, error, evidenceDetails, fetchEvidenceData } =
     useFetchSingleEvidence(evidenceId);
 

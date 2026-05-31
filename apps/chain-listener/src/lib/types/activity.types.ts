@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { AddressSchema, Bytes32Schema } from "./solidity.types";
 
 export const ActivityTypeSchema = z.enum(["create", "transfer", "discontinue"]);
 export const ActivityStatusSchema = z.enum([
@@ -8,6 +9,16 @@ export const ActivityStatusSchema = z.enum([
   "failed",
   "pending",
 ]);
-
-export type ActivityStatus = z.infer<typeof ActivityStatusSchema>;
-export type ActivityTypeType = z.infer<typeof ActivityTypeSchema>;
+export const PendingActivityDbPayloadSchema = z.object({
+  id: z.coerce.bigint(),
+  txHash: Bytes32Schema,
+  evidenceId: Bytes32Schema,
+  actor: AddressSchema,
+  type: ActivityTypeSchema,
+  chainId: z.number(),
+});
+export type PendingActivityDbPayload = z.input<
+  typeof PendingActivityDbPayloadSchema
+>;
+export type ActivityStatus = z.output<typeof ActivityStatusSchema>;
+export type ActivityType = z.output<typeof ActivityTypeSchema>;

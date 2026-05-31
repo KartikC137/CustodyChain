@@ -8,7 +8,7 @@
   ],
   "scripts": {
     "start": "concurrently \"bun --filter chain-listener start\" \"bun --filter custodychain-web start\"",
-    "dev": "concurrently \"bun --filter chain-listener dev\" \"../DevFiles/DeployEvidenceLedger_ANVIL.sh\" \"bun --filter custodychain-web dev\"",
+    "dev": "concurrently \"bun --filter chain-listener dev\" \"anvil\" \"bun --filter custodychain-web dev\"",
     "build": "bun --filter custodychain-web build && bun --filter chain-listener build"
   },
   "devDependencies": {
